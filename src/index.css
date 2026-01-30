@@ -1,0 +1,36 @@
+/* index.css */
+
+/* Reset margins/padding and set box-sizing */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Body styling */
+body {
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif; /* matches MUI default font */
+  background-color: #f5f5f5; /* light grey background for app */
+  color: #333;
+  line-height: 1.6;
+}
+
+/* Links */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Buttons inherit font */
+button {
+  font-family: inherit;
+}
+
+/* Optional: set root to full height */
+html,
+body,
+#root {
+  height: 100%;
+}
