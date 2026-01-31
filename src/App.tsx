@@ -1,11 +1,13 @@
 import { Routes, Route } from "react-router-dom";
 import { Authenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
+import { TripProvider } from "./context/TripContext";
 
 import Layout from "./components/Layout";
 import Summary from "./pages/Summary";
 import ExpenseForm from "./pages/ExpenseForm";
 import Settings from "./pages/Settings";
+
 
 export default function App() {
   return (
@@ -16,16 +18,18 @@ export default function App() {
         },
       }}>
       {({ signOut, user }) => (
+       <TripProvider>
         <Layout
-          user={user}
-          onLogout={() => signOut?.()} // ✅ wraps the optional param + optional undefined
-        >
-          <Routes>
-            <Route path="/" element={<Summary />} />
-            <Route path="/expenses" element={<ExpenseForm />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </Layout>
+            user={user}
+            onLogout={() => signOut?.()} // ✅ wraps the optional param + optional undefined
+          >
+            <Routes>
+              <Route path="/" element={<Summary />} />
+              <Route path="/expenses" element={<ExpenseForm />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </Layout>
+        </TripProvider>
       )}
     </Authenticator>
   );

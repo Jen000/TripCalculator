@@ -7,7 +7,8 @@ Amplify.configure({
       userPoolClientId: "1v6og8u0k8cjt7danhv9ab82at",
 
       loginWith: {
-        email: true,
+        email: false,
+        username: true,
         oauth: {
           domain: "YOUR_DOMAIN_PREFIX.auth.us-east-1.amazoncognito.com",
           scopes: ["openid", "email", "profile"],
