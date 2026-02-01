@@ -138,7 +138,7 @@ export default function Summary() {
           <Button
             variant="outlined"
             disabled={!activeTripId || loadingTrips || loading}
-            onClick={() => activeTripId && exportTripCsv(activeTripId)}
+            onClick={() => activeTripId && exportTripCsv(activeTripId, activeTripName)}
           >
             Export CSV
           </Button>

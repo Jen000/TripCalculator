@@ -65,7 +65,7 @@ export async function deleteTrip(tripId: string) {
   return (await res.json()) as { message: string; deletedExpenses: number };
 }
 
-export async function exportTripCsv(tripId: string) {
+export async function exportTripCsv(tripId: string, activeTripName: string) {
   const session = await fetchAuthSession();
   const token = session.tokens?.idToken?.toString();
   if (!token) throw new Error("No auth token found. Are you signed in?");
@@ -82,7 +82,7 @@ export async function exportTripCsv(tripId: string) {
 
   const a = document.createElement("a");
   a.href = href;
-  a.download = `trip-${tripId}-expenses.csv`;
+  a.download = `${activeTripName}-expenses.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
