@@ -17,7 +17,7 @@ export async function getExpenses(tripId: string) {
   const session = await fetchAuthSession();
   const token = session.tokens?.idToken?.toString();
 
-  const url = `${API_BASE_URL}/expenses?tripId=${encodeURIComponent(tripId)}`;
+  const url = `${requireApiBaseUrl()}/expenses?tripId=${encodeURIComponent(tripId)}`;
   const res = await fetch(url, {
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
@@ -37,7 +37,7 @@ export async function postExpense(input: {
   const session = await fetchAuthSession();
   const token = session.tokens?.idToken?.toString();
 
-  const res = await fetch(`${API_BASE_URL}/expenses`, {
+  const res = await fetch(`${requireApiBaseUrl()}/expenses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -48,4 +48,10 @@ export async function postExpense(input: {
 
   if (!res.ok) throw new Error(await res.text());
   return (await res.json()) as { message: string; expense: Expense };
+}
+
+function requireApiBaseUrl() {
+  const base = API_BASE_URL;
+  if (!base) throw new Error("VITE_API_BASE_URL is missing. Check .env and restart Vite.");
+  return base;
 }

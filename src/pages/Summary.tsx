@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Typography,
@@ -17,6 +18,7 @@ import {
 } from "@mui/material";
 
 import { useTrip } from "../context/TripContext";
+import { exportTripCsv } from "../api/trips";
 import { getExpenses, type Expense } from "../api/expenses";
 
 function formatMoneyFromCents(cents: number) {
@@ -33,7 +35,7 @@ function groupTotals(expenses: Expense[], keyFn: (e: Expense) => string): Totals
 
   for (const e of expenses) {
     const key = (keyFn(e) || "Unknown").trim() || "Unknown";
-    const cost = Number.isFinite(e.costCents) ? e.costCents : 0;
+    const cost = Number.isFinite(e.costCents) ? (e.costCents ?? 0) : 0;
 
     const cur = map.get(key) ?? { cents: 0, count: 0 };
     cur.cents += cost;
@@ -58,10 +60,13 @@ export default function Summary() {
   }, [trips, activeTripId]);
 
   useEffect(() => {
-    // Wait until trips are loaded + we have an active trip
+    // Wait for trips to finish loading
     if (loadingTrips) return;
+
+    // If no selected trip, clear expenses view
     if (!activeTripId) {
       setExpenses([]);
+      setError("");
       setLoading(false);
       return;
     }
@@ -95,7 +100,8 @@ export default function Summary() {
     };
   }, [expenses]);
 
-  if (!loadingTrips && !activeTripId) {
+  // ---------- Empty states ----------
+  if (!loadingTrips && trips.length === 0) {
     return (
       <Stack spacing={2}>
         <Typography variant="h5" fontWeight={800}>
@@ -108,12 +114,35 @@ export default function Summary() {
     );
   }
 
+  if (!loadingTrips && trips.length > 0 && !activeTripId) {
+    return (
+      <Stack spacing={2}>
+        <Typography variant="h5" fontWeight={800}>
+          Summary
+        </Typography>
+        <Alert severity="info">
+          Select a trip from the dropdown in the top bar to see the summary.
+        </Alert>
+      </Stack>
+    );
+  }
+
   return (
     <Box>
       <Stack spacing={2}>
-        <Typography variant="h5" fontWeight={800}>
-          Summary — {activeTripName}
-        </Typography>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Typography variant="h5" fontWeight={800}>
+            Summary — {activeTripName}
+          </Typography>
+
+          <Button
+            variant="outlined"
+            disabled={!activeTripId || loadingTrips || loading}
+            onClick={() => activeTripId && exportTripCsv(activeTripId)}
+          >
+            Export CSV
+          </Button>
+        </Stack>
 
         {error && <Alert severity="error">{error}</Alert>}
 
@@ -123,7 +152,13 @@ export default function Summary() {
           </Box>
         )}
 
-        {!loadingTrips && !loading && !error && (
+        {!loadingTrips && !loading && !error && expenses.length === 0 && (
+          <Alert severity="info">
+            No expenses yet for this trip. Add one on the <b>Add Expense</b> page.
+          </Alert>
+        )}
+
+        {!loadingTrips && !loading && !error && expenses.length > 0 && (
           <>
             {/* KPI cards */}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -159,28 +194,24 @@ export default function Summary() {
                   </Typography>
                   <Divider sx={{ my: 1.5 }} />
 
-                  {categoryTotals.length === 0 ? (
-                    <Typography sx={{ opacity: 0.8 }}>No expenses yet.</Typography>
-                  ) : (
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Category</TableCell>
-                          <TableCell align="right">Count</TableCell>
-                          <TableCell align="right">Total</TableCell>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Category</TableCell>
+                        <TableCell align="right">Count</TableCell>
+                        <TableCell align="right">Total</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {categoryTotals.map((row) => (
+                        <TableRow key={row.key}>
+                          <TableCell>{row.key}</TableCell>
+                          <TableCell align="right">{row.count}</TableCell>
+                          <TableCell align="right">{formatMoneyFromCents(row.cents)}</TableCell>
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {categoryTotals.map((row) => (
-                          <TableRow key={row.key}>
-                            <TableCell>{row.key}</TableCell>
-                            <TableCell align="right">{row.count}</TableCell>
-                            <TableCell align="right">{formatMoneyFromCents(row.cents)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
 
@@ -191,28 +222,24 @@ export default function Summary() {
                   </Typography>
                   <Divider sx={{ my: 1.5 }} />
 
-                  {payerTotals.length === 0 ? (
-                    <Typography sx={{ opacity: 0.8 }}>No expenses yet.</Typography>
-                  ) : (
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Person</TableCell>
-                          <TableCell align="right">Count</TableCell>
-                          <TableCell align="right">Total</TableCell>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Person</TableCell>
+                        <TableCell align="right">Count</TableCell>
+                        <TableCell align="right">Total</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {payerTotals.map((row) => (
+                        <TableRow key={row.key}>
+                          <TableCell>{row.key}</TableCell>
+                          <TableCell align="right">{row.count}</TableCell>
+                          <TableCell align="right">{formatMoneyFromCents(row.cents)}</TableCell>
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {payerTotals.map((row) => (
-                          <TableRow key={row.key}>
-                            <TableCell>{row.key}</TableCell>
-                            <TableCell align="right">{row.count}</TableCell>
-                            <TableCell align="right">{formatMoneyFromCents(row.cents)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             </Stack>
@@ -225,36 +252,30 @@ export default function Summary() {
                 </Typography>
                 <Divider sx={{ my: 1.5 }} />
 
-                {recentExpenses.length === 0 ? (
-                  <Typography sx={{ opacity: 0.8 }}>No expenses yet.</Typography>
-                ) : (
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Category</TableCell>
-                        <TableCell>Who Paid</TableCell>
-                        <TableCell align="right">Cost</TableCell>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Description</TableCell>
+                      <TableCell>Category</TableCell>
+                      <TableCell>Who Paid</TableCell>
+                      <TableCell align="right">Cost</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {recentExpenses.map((e) => (
+                      <TableRow key={e.expenseId}>
+                        <TableCell sx={{ whiteSpace: "nowrap" }}>{e.date}</TableCell>
+                        <TableCell>{e.description}</TableCell>
+                        <TableCell>
+                          <Chip size="small" label={e.category} />
+                        </TableCell>
+                        <TableCell>{e.whoPaid}</TableCell>
+                        <TableCell align="right">{formatMoneyFromCents(e.costCents ?? 0)}</TableCell>
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {recentExpenses.map((e) => (
-                        <TableRow key={e.expenseId}>
-                          <TableCell sx={{ whiteSpace: "nowrap" }}>{e.date}</TableCell>
-                          <TableCell>{e.description}</TableCell>
-                          <TableCell>
-                            <Chip size="small" label={e.category} />
-                          </TableCell>
-                          <TableCell>{e.whoPaid}</TableCell>
-                          <TableCell align="right">
-                            {formatMoneyFromCents(e.costCents ?? 0)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </>

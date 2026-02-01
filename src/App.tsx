@@ -7,9 +7,21 @@ import Layout from "./components/Layout";
 import Summary from "./pages/Summary";
 import ExpenseForm from "./pages/ExpenseForm";
 import Settings from "./pages/Settings";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 
 export default function App() {
+
+  fetchAuthSession().then((s) => {
+    const idToken = s.tokens?.idToken?.toString();
+    if (!idToken) return;
+
+    const payload = JSON.parse(atob(idToken.split(".")[1]));
+    console.log("Cognito sub:", payload.sub);
+    console.log("Token issuer:", payload.iss);
+    console.log("Token audience:", payload.aud);
+  });
+
   return (
     <Authenticator hideSignUp
       components={{
@@ -31,6 +43,7 @@ export default function App() {
           </Layout>
         </TripProvider>
       )}
+      
     </Authenticator>
   );
 }
