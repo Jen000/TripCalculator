@@ -21,7 +21,7 @@ import {
   Tooltip,
   useMediaQuery,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, alpha } from "@mui/material/styles";
 import MenuIcon from "@mui/icons-material/Menu";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
@@ -29,19 +29,22 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTrip } from "../context/TripContext";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 
 type Props = {
   children: ReactNode;
   onLogout: () => void;
   user: any;
+  mode: "light" | "dark";
+  onToggleMode: () => void;
 };
 
-export default function Layout({ children, onLogout, user }: Props) {
+export default function Layout({ children, onLogout, user, mode, onToggleMode }: Props) {
   const { trips, activeTripId, setActiveTripId, loadingTrips } = useTrip();
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -60,18 +63,24 @@ export default function Layout({ children, onLogout, user }: Props) {
     setDrawerOpen(false);
   };
 
+  const activeBg = alpha("#fff", 0.18);
+  const hoverBg = alpha("#fff", 0.12);
+
+  const navIconSx = (active: boolean) => ({
+    borderRadius: 2,
+    color: "inherit",
+    bgcolor: active ? activeBg : "transparent",
+    "&:hover": { bgcolor: hoverBg },
+  });
+
   const topActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Summary">
         <IconButton
-          color="inherit"
           onClick={() => go("/")}
           aria-label="Summary"
           size="large"
-          sx={{
-            bgcolor: location.pathname === "/" ? "rgba(255,255,255,0.14)" : "transparent",
-            borderRadius: 2,
-          }}
+          sx={navIconSx(location.pathname === "/")}
         >
           <DescriptionOutlinedIcon />
         </IconButton>
@@ -79,25 +88,39 @@ export default function Layout({ children, onLogout, user }: Props) {
 
       <Tooltip title="Add expense">
         <IconButton
-          color="inherit"
           onClick={() => go("/expenses")}
           aria-label="Add expense"
           size="large"
-          sx={{
-            bgcolor: location.pathname === "/expenses" ? "rgba(255,255,255,0.14)" : "transparent",
-            borderRadius: 2,
-          }}
+          sx={navIconSx(location.pathname === "/expenses")}
         >
           <AddCircleOutlineIcon />
         </IconButton>
       </Tooltip>
 
+      <Tooltip title={mode === "dark" ? "Light mode" : "Dark mode"}>
+        <IconButton
+          onClick={onToggleMode}
+          aria-label="Toggle theme"
+          size="large"
+          sx={{
+            borderRadius: 2,
+            "&:hover": { bgcolor: alpha(theme.palette.common.white, 0.12) },
+          }}
+        >
+          {mode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+        </IconButton>
+      </Tooltip>
+
       <Tooltip title="Menu">
         <IconButton
-          color="inherit"
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
           size="large"
+          sx={{
+            borderRadius: 2,
+            color: "inherit", // ✅ makes icon match AppBar text/icon color
+            "&:hover": { bgcolor: alpha(theme.palette.common.white, 0.12) },
+          }}
         >
           <MenuIcon />
         </IconButton>
@@ -106,17 +129,25 @@ export default function Layout({ children, onLogout, user }: Props) {
   );
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
-      <AppBar position="sticky" elevation={1}>
-        <Toolbar sx={{ gap: 1 }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "light" ? 0.06 : 0.10),
+          borderRadius: 2,
+        }}
+      >
+        <Toolbar sx={{ gap: 1, py: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, flexGrow: 1 }}>
             Trip Expense Tracker
           </Typography>
 
-          {/* Desktop: show trip selector inline */}
           {!isMobile && (
             <FormControl size="small" sx={{ minWidth: 240 }}>
-              <InputLabel id="trip-select-label">Trip</InputLabel>
+              <InputLabel id="trip-select-label" sx={{ color: alpha("#fff", 0.85) }}>
+                Trip
+              </InputLabel>
               <Select
                 labelId="trip-select-label"
                 label="Trip"
@@ -126,6 +157,19 @@ export default function Layout({ children, onLogout, user }: Props) {
                   setActiveTripId(v ? v : null);
                 }}
                 disabled={loadingTrips || trips.length === 0}
+                sx={{
+                  color: "#fff",
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: alpha("#fff", 0.35),
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: alpha("#fff", 0.55),
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: alpha("#fff", 0.7),
+                  },
+                  ".MuiSvgIcon-root": { color: alpha("#fff", 0.85) },
+                }}
               >
                 <MenuItem value="">
                   <em>No trip</em>
@@ -139,17 +183,21 @@ export default function Layout({ children, onLogout, user }: Props) {
             </FormControl>
           )}
 
-          {/* Right side */}
           {topActions}
         </Toolbar>
       </AppBar>
 
-      {/* Drawer */}
       <Drawer
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{ sx: { width: 320, maxWidth: "85vw" } }}
+        PaperProps={{
+          sx: {
+            width: 320,
+            maxWidth: "85vw",
+            bgcolor: "background.paper",
+          },
+        }}
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="overline" sx={{ opacity: 0.7 }}>
@@ -161,14 +209,13 @@ export default function Layout({ children, onLogout, user }: Props) {
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Mobile: trip selector goes here */}
           {isMobile && (
             <Stack spacing={1.5}>
               <Typography variant="overline" sx={{ opacity: 0.7 }}>
                 Trip
               </Typography>
 
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx= {{}}>
                 <InputLabel id="trip-select-drawer">Trip</InputLabel>
                 <Select
                   labelId="trip-select-drawer"
@@ -199,22 +246,61 @@ export default function Layout({ children, onLogout, user }: Props) {
             </Stack>
           )}
 
-          <List disablePadding>
-            <ListItemButton onClick={() => go("/")}>
+          <List disablePadding sx={{ mt: 1 }}>
+            <ListItemButton
+              selected={location.pathname === "/"}
+              onClick={() => go("/")}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                "&.Mui-selected": {
+                  bgcolor: alpha(theme.palette.primary.main, 0.14),
+                },
+                "&.Mui-selected:hover": {
+                  bgcolor: alpha(theme.palette.primary.main, 0.2),
+                },
+              }}
+            >
               <ListItemIcon>
                 <DescriptionOutlinedIcon />
               </ListItemIcon>
               <ListItemText primary="Summary" />
             </ListItemButton>
 
-            <ListItemButton onClick={() => go("/expenses")}>
+            <ListItemButton
+              selected={location.pathname === "/expenses"}
+              onClick={() => go("/expenses")}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                "&.Mui-selected": {
+                  bgcolor: alpha(theme.palette.primary.main, 0.14),
+                },
+                "&.Mui-selected:hover": {
+                  bgcolor: alpha(theme.palette.primary.main, 0.2),
+                },
+              }}
+            >
               <ListItemIcon>
                 <AddCircleOutlineIcon />
               </ListItemIcon>
               <ListItemText primary="Add Expense" />
             </ListItemButton>
 
-            <ListItemButton onClick={() => go("/settings")}>
+            <ListItemButton
+              selected={location.pathname === "/settings"}
+              onClick={() => go("/settings")}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                "&.Mui-selected": {
+                  bgcolor: alpha(theme.palette.primary.main, 0.14),
+                },
+                "&.Mui-selected:hover": {
+                  bgcolor: alpha(theme.palette.primary.main, 0.2),
+                },
+              }}
+            >
               <ListItemIcon>
                 <SettingsOutlinedIcon />
               </ListItemIcon>
@@ -230,8 +316,13 @@ export default function Layout({ children, onLogout, user }: Props) {
                 setDrawerOpen(false);
                 onLogout();
               }}
+              sx={{
+                borderRadius: 2,
+                color: "error.main",
+                "&:hover": { bgcolor: alpha(theme.palette.error.main, 0.08) },
+              }}
             >
-              <ListItemIcon>
+              <ListItemIcon sx={{ color: "inherit" }}>
                 <LogoutOutlinedIcon />
               </ListItemIcon>
               <ListItemText primary="Logout" />
@@ -240,8 +331,7 @@ export default function Layout({ children, onLogout, user }: Props) {
         </Box>
       </Drawer>
 
-      {/* Page container */}
-      <Container maxWidth="sm" sx={{ mt: 2, pb: 4 , px: { xs: 1.5, sm: 2} }}>
+      <Container maxWidth="sm" sx={{ mt: 2, pb: 4, px: { xs: 1.5, sm: 2 } }}>
         {children}
       </Container>
     </Box>

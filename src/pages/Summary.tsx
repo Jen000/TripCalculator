@@ -10,13 +10,16 @@ import {
   CircularProgress,
   Divider,
   Table,
+  TableContainer,
   TableHead,
   TableRow,
   TableCell,
   TableBody,
   Chip,
+  Paper,
+  useMediaQuery
 } from "@mui/material";
-
+import { useTheme } from "@mui/material/styles";
 import { useTrip } from "../context/TripContext";
 import { exportTripCsv } from "../api/trips";
 import { getExpenses, type Expense } from "../api/expenses";
@@ -58,6 +61,10 @@ export default function Summary() {
   const activeTripName = useMemo(() => {
     return trips.find((t) => t.tripId === activeTripId)?.name ?? "Trip";
   }, [trips, activeTripId]);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
 
   useEffect(() => {
     // Wait for trips to finish loading
@@ -251,31 +258,67 @@ export default function Summary() {
                   Recent Expenses
                 </Typography>
                 <Divider sx={{ my: 1.5 }} />
+                {isMobile && (
+                  <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                    Swipe horizontally to see all columns →
+                  </Typography>
+                )}
+                {recentExpenses.length === 0 ? (
+                  <Typography sx={{ opacity: 0.8 }}>No expenses yet.</Typography>
+                ) : (
+                  <TableContainer
+                    component={Paper}
+                    elevation={0}
+                    sx={{
+                      bgcolor: "transparent",
+                      overflowX: isMobile ? "auto" : "visible",
+                      WebkitOverflowScrolling: "touch",
+                    }}
+                  >
+                    <Table
+                      size="small"
+                      sx={{
+                        minWidth: isMobile ? 720 : "auto",
+                      }}
+                    >
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Date</TableCell>
+                          <TableCell>Description</TableCell>
+                          <TableCell>Category</TableCell>
+                          <TableCell>Who Paid</TableCell>
+                          <TableCell align="right">Cost</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {recentExpenses.map((e) => (
+                          <TableRow key={e.expenseId}>
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>{e.date}</TableCell>
 
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Description</TableCell>
-                      <TableCell>Category</TableCell>
-                      <TableCell>Who Paid</TableCell>
-                      <TableCell align="right">Cost</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {recentExpenses.map((e) => (
-                      <TableRow key={e.expenseId}>
-                        <TableCell sx={{ whiteSpace: "nowrap" }}>{e.date}</TableCell>
-                        <TableCell>{e.description}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={e.category} />
-                        </TableCell>
-                        <TableCell>{e.whoPaid}</TableCell>
-                        <TableCell align="right">{formatMoneyFromCents(e.costCents ?? 0)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                            <TableCell sx={{ minWidth: isMobile ? 220 : "auto" }}>
+                              {e.description}
+                            </TableCell>
+
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>
+                              <Chip size="small" label={e.category} />
+                            </TableCell>
+
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>
+                              {e.whoPaid}
+                            </TableCell>
+
+                            <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                              {formatMoneyFromCents(e.costCents ?? 0)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+
+
+
               </CardContent>
             </Card>
           </>
