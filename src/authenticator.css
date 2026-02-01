@@ -1,0 +1,92 @@
+/* src/authenticator.css */
+
+/* Override Amplify primary button tokens */
+[data-amplify-authenticator] {
+  --amplify-components-button-primary-background-color: #1f7a63;
+  --amplify-components-button-primary-hover-background-color: #176553;
+  --amplify-components-button-primary-active-background-color: #145746;
+  --amplify-components-button-primary-border-color: #1f7a63;
+  --amplify-components-button-primary-color: #ffffff;
+}
+
+
+/* Use your app font */
+:root {
+  --amplify-fonts-default-static: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial;
+}
+
+/* Make the overall auth page match your app background */
+[data-amplify-authenticator] {
+  --amplify-colors-background-primary: #eef7f2; /* greener background */
+  --amplify-colors-font-primary: #2b2b2b;
+}
+
+/* Center nicely on the page */
+[data-amplify-authenticator] [data-amplify-container] {
+  max-width: 420px;
+  margin: 0 auto;
+  border-radius: 14px;
+  border: 1px solid rgba(31, 122, 99, 0.16);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+}
+
+/* Make the title area feel like your product */
+[data-amplify-authenticator] [data-amplify-header] {
+  padding-top: 28px;
+}
+
+/* Headings: bold + modern */
+[data-amplify-authenticator] h3,
+[data-amplify-authenticator] h4 {
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+/* Labels */
+[data-amplify-authenticator] label {
+  font-weight: 700;
+}
+
+/* Inputs: softer, greener */
+[data-amplify-authenticator] input {
+  border-radius: 12px;
+}
+
+/* Input focus ring in your green */
+[data-amplify-authenticator] input:focus {
+  border-color: #1f7a63 !important;
+  box-shadow: 0 0 0 3px rgba(31, 122, 99, 0.18) !important;
+}
+
+/* PRIMARY AUTH BUTTON */
+[data-amplify-authenticator] button {
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+  text-transform: none !important;
+}
+
+/* Links: green */
+[data-amplify-authenticator] a {
+  color: #1f7a63;
+  font-weight: 700;
+}
+
+/* Error alerts: slightly toned */
+[data-amplify-authenticator] [data-amplify-alert][data-variation="error"] {
+  border-radius: 12px;
+}
+
+/* Optional: reduce spacing so it feels tighter like your app */
+[data-amplify-authenticator] [data-amplify-form] {
+  gap: 12px;
+}
+
+[data-amplify-authenticator] [data-amplify-container] {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+[data-amplify-authenticator] [data-amplify-section] {
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.92);
+}
