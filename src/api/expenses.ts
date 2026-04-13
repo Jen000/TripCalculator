@@ -50,6 +50,53 @@ export async function postExpense(input: {
   return (await res.json()) as { message: string; expense: Expense };
 }
 
+export async function updateExpense(
+  expenseId: string,
+  input: {
+    date: string;
+    description: string;
+    whoPaid: string;
+    category: string;
+    cost: number;
+  }
+) {
+  const session = await fetchAuthSession();
+  const token = session.tokens?.idToken?.toString();
+
+  const res = await fetch(
+    `${requireApiBaseUrl()}/expenses/${encodeURIComponent(expenseId)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as { message: string; expense: Expense };
+}
+
+export async function deleteExpense(expenseId: string) {
+  const session = await fetchAuthSession();
+  const token = session.tokens?.idToken?.toString();
+
+  const res = await fetch(
+    `${requireApiBaseUrl()}/expenses/${encodeURIComponent(expenseId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as { message: string };
+}
+
 function requireApiBaseUrl() {
   const base = API_BASE_URL;
   if (!base) throw new Error("VITE_API_BASE_URL is missing. Check .env and restart Vite.");

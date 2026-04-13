@@ -3,6 +3,7 @@ import { Authenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
 import "./authenticator.css";
 import { TripProvider } from "./context/TripContext";
+import { BudgetProvider } from "./context/BudgetContext";
 import { useEffect, useMemo, useState } from "react";
 import { ThemeProvider, CssBaseline, Stack, Typography, Chip } from "@mui/material";
 import { makeTheme } from "./theme";
@@ -11,6 +12,7 @@ import Layout from "./components/Layout";
 import Summary from "./pages/Summary";
 import ExpenseForm from "./pages/ExpenseForm";
 import Settings from "./pages/Settings";
+import AllExpenses from "./pages/AllExpenses";
 
 function getInitialMode(): "light" | "dark" {
   const saved = localStorage.getItem("themeMode");
@@ -70,18 +72,21 @@ export default function App() {
       >
         {({ signOut, user }) => (
           <TripProvider>
-            <Layout
-              user={user}
-              onLogout={() => signOut?.()}
-              mode={mode}
-              onToggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
-            >
-              <Routes>
-                <Route path="/" element={<Summary />} />
-                <Route path="/expenses" element={<ExpenseForm />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </Layout>
+            <BudgetProvider>
+              <Layout
+                user={user}
+                onLogout={() => signOut?.()}
+                mode={mode}
+                onToggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
+              >
+                <Routes>
+                  <Route path="/" element={<Summary />} />
+                  <Route path="/expenses" element={<ExpenseForm />} />
+                  <Route path="/expenses/all" element={<AllExpenses />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </Layout>
+            </BudgetProvider>
           </TripProvider>
         )}
       </Authenticator>
