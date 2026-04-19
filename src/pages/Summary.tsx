@@ -256,7 +256,8 @@ export default function Summary() {
                         cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
                         {categoryTotals.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                       </Pie>
-                      <RechartsTooltip formatter={(v: number) => [formatMoney(v), "Spent"]}
+                      <RechartsTooltip
+                        formatter={(v) => [typeof v === "number" ? formatMoney(v) : v, "Spent"]}
                         contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                           background: theme.palette.background.paper, color: theme.palette.text.primary, fontSize: 12 }} />
                       <Legend iconType="circle" iconSize={8}
@@ -277,7 +278,8 @@ export default function Summary() {
                       <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} angle={-30} textAnchor="end" interval={0} />
                       <YAxis tickFormatter={formatMoneyShort} tick={{ fontSize: 10, fill: theme.palette.text.secondary }} width={44} />
-                      <RechartsTooltip formatter={(v: number) => [formatMoney(v), "Spent"]}
+                      <RechartsTooltip
+                        formatter={(v) => [typeof v === "number" ? formatMoney(v) : v, "Spent"]}
                         contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                           background: theme.palette.background.paper, color: theme.palette.text.primary, fontSize: 12 }} />
                       <Bar dataKey="cents" radius={[4, 4, 0, 0]}>
@@ -307,7 +309,7 @@ export default function Summary() {
                       <XAxis dataKey="date" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} interval="preserveStartEnd" />
                       <YAxis tickFormatter={formatMoneyShort} tick={{ fontSize: 10, fill: theme.palette.text.secondary }} width={44} />
                       <RechartsTooltip
-                        formatter={(v: number, name: string) => [formatMoney(v), name === "cumulativeCents" ? "Total" : "Daily"]}
+                        formatter={(v, name) => [typeof v === "number" ? formatMoney(v) : v, name === "cumulativeCents" ? "Total" : "Daily"]}
                         contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                           background: theme.palette.background.paper, color: theme.palette.text.primary, fontSize: 12 }} />
                       <Area type="monotone" dataKey="cumulativeCents" stroke={theme.palette.primary.main}

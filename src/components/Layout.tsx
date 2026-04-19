@@ -31,6 +31,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTrip } from "../context/TripContext";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
+import BalanceOutlinedIcon from "@mui/icons-material/BalanceOutlined";
+import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 
 type Props = {
   children: ReactNode;
@@ -288,17 +290,45 @@ export default function Layout({ children, onLogout, user, mode, onToggleMode }:
             </ListItemButton>
 
             <ListItemButton
+              selected={location.pathname === "/settle-up"}
+              onClick={() => go("/settle-up")}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                "&.Mui-selected": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
+                "&.Mui-selected:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
+              }}
+            >
+              <ListItemIcon>
+                <BalanceOutlinedIcon />
+              </ListItemIcon>
+              <ListItemText primary="Settle Up" />
+            </ListItemButton>
+
+            <ListItemButton
+              selected={location.pathname === "/trip-settings"}
+              onClick={() => go("/trip-settings")}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                "&.Mui-selected": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
+                "&.Mui-selected:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
+              }}
+            >
+              <ListItemIcon>
+                <TuneOutlinedIcon />
+              </ListItemIcon>
+              <ListItemText primary="Trip Settings" />
+            </ListItemButton>
+
+            <ListItemButton
               selected={location.pathname === "/settings"}
               onClick={() => go("/settings")}
               sx={{
                 borderRadius: 2,
                 mb: 0.5,
-                "&.Mui-selected": {
-                  bgcolor: alpha(theme.palette.primary.main, 0.14),
-                },
-                "&.Mui-selected:hover": {
-                  bgcolor: alpha(theme.palette.primary.main, 0.2),
-                },
+                "&.Mui-selected": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
+                "&.Mui-selected:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
               }}
             >
               <ListItemIcon>
