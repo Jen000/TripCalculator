@@ -296,8 +296,8 @@ export default function Layout({ children, onLogout, user, mode, onToggleMode }:
       </Drawer>
 
       <Container
-        maxWidth={location.pathname === "/" ? "xl" : "sm"}
-        sx={{ mt: 2, pb: 4, px: { xs: 1.5, sm: 2, md: location.pathname === "/" ? 4 : 2 } }}
+        maxWidth={["/", "/settle-up", "/trip-settings"].includes(location.pathname) ? "xl" : "sm"}
+        sx={{ mt: 2, pb: 4, px: { xs: 1.5, sm: 2, md: ["/", "/settle-up", "/trip-settings"].includes(location.pathname) ? 4 : 2 } }}
       >
         {children}
       </Container>
