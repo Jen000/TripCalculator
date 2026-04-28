@@ -3,9 +3,9 @@ import {
   CognitoIdentityProviderClient,
   ListUsersCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { ddb } from "../shared/db.js";
-import { response } from "../shared/response.js";
-import { getUserSub } from "../shared/auth.js";
+import { ddb } from "./db.js";
+import { response } from "./response.js";
+import { getUserSub } from "./auth.js";
 
 const TABLE_NAME = process.env.TRIP_SETTINGS_TABLE;
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;

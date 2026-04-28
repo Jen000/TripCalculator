@@ -38,7 +38,7 @@ for FUNCTION_NAME in "${!FUNCTIONS[@]}"; do
   echo "📦 Packaging $FUNCTION_NAME ($HANDLER_FILE)..."
 
   # Each zip contains the handler + the shared/ folder
-  zip -j "$ZIP_PATH" "$HANDLER_FILE" shared/db.js shared/response.js shared/auth.js > /dev/null
+  zip -j "$ZIP_PATH" "$HANDLER_FILE" shared/db.js shared/response.js shared/auth.js package.json > /dev/null
 
   echo "🚀 Deploying $FUNCTION_NAME..."
   aws lambda update-function-code \

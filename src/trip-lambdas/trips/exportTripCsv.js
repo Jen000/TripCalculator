@@ -1,6 +1,6 @@
 import { QueryCommand, BatchGetCommand } from "@aws-sdk/lib-dynamodb";
-import { ddb } from "../shared/db.js";
-import { getUserSub } from "../shared/auth.js";
+import { ddb } from "./db.js";
+import { getUserSub } from "./auth.js";
 
 const EXPENSES_TABLE = process.env.EXPENSES_TABLE;
 const EXPENSES_GSI = process.env.EXPENSES_GSI || "gsiUserTrip";

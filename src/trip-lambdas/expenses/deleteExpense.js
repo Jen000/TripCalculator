@@ -1,7 +1,7 @@
 import { DeleteCommand } from "@aws-sdk/lib-dynamodb";
-import { ddb } from "../shared/db.js";
-import { response } from "../shared/response.js";
-import { getUserSub } from "../shared/auth.js";
+import { ddb } from "./db.js";
+import { response } from "./response.js";
+import { getUserSub } from "./auth.js";
 
 const TABLE_NAME = process.env.EXPENSES_TABLE;
 
