@@ -71,11 +71,10 @@ export const handler = async (event) => {
     await ddb.send(new UpdateCommand({
       TableName: TABLE_NAME,
       Key: { tripId },
-      UpdateExpression: "SET members = list_append(if_not_exists(members, :empty), :newMember), tripId = :tripId",
+      UpdateExpression: "SET members = list_append(if_not_exists(members, :empty), :newMember)",
       ExpressionAttributeValues: {
         ":empty": [],
         ":newMember": [newMember],
-        ":tripId": tripId,
       },
     }));
 
