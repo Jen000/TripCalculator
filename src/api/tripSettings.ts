@@ -39,6 +39,7 @@ export type TripSettings = {
   totalBudgetCents: number | null;
   categoryBudgets: { category: string; limitCents: number }[];
   members: { userId: string; email: string; role: "owner" | "member" }[];
+  people: string[];
 };
 
 export async function getTripSettings(tripId: string): Promise<TripSettings> {
@@ -48,7 +49,7 @@ export async function getTripSettings(tripId: string): Promise<TripSettings> {
 
 export async function updateTripSettings(
   tripId: string,
-  settings: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets">>
+  settings: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people">>
 ): Promise<TripSettings> {
   const res = await authedFetch(`/trips/${encodeURIComponent(tripId)}/settings`, {
     method: "PUT",

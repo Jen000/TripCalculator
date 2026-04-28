@@ -3,6 +3,7 @@ import { Authenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
 import "./authenticator.css";
 import { TripProvider } from "./context/TripContext";
+import { UserProvider } from "./context/UserContext";
 import { BudgetProvider } from "./context/BudgetContext";
 import { TripSettingsProvider } from "./context/TripSettingsContext";
 import { useEffect, useMemo, useState } from "react";
@@ -59,21 +60,23 @@ export default function App() {
       }}>
         {({ signOut, user }) => (
           <TripProvider>
-            <TripSettingsProvider>
-              <BudgetProvider>
-                <Layout user={user} onLogout={() => signOut?.()}
-                  mode={mode} onToggleMode={() => setMode((m) => m === "dark" ? "light" : "dark")}>
-                  <Routes>
-                    <Route path="/" element={<Summary />} />
-                    <Route path="/expenses" element={<ExpenseForm />} />
-                    <Route path="/expenses/all" element={<AllExpenses />} />
-                    <Route path="/trip-settings" element={<TripSettingsPage />} />
-                    <Route path="/settle-up" element={<SettleUpPage />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Routes>
-                </Layout>
-              </BudgetProvider>
-            </TripSettingsProvider>
+            <UserProvider>
+              <TripSettingsProvider>
+                <BudgetProvider>
+                  <Layout user={user} onLogout={() => signOut?.()}
+                    mode={mode} onToggleMode={() => setMode((m) => m === "dark" ? "light" : "dark")}>
+                    <Routes>
+                      <Route path="/" element={<Summary />} />
+                      <Route path="/expenses" element={<ExpenseForm />} />
+                      <Route path="/expenses/all" element={<AllExpenses />} />
+                      <Route path="/trip-settings" element={<TripSettingsPage />} />
+                      <Route path="/settle-up" element={<SettleUpPage />} />
+                      <Route path="/settings" element={<Settings />} />
+                    </Routes>
+                  </Layout>
+                </BudgetProvider>
+              </TripSettingsProvider>
+            </UserProvider>
           </TripProvider>
         )}
       </Authenticator>

@@ -12,7 +12,7 @@ type SettingsMap = Record<string, TripSettings>;
 type TripSettingsContextValue = {
   getSettings: (tripId: string) => TripSettings | null;
   loadSettings: (tripId: string) => Promise<void>;
-  saveSettings: (tripId: string, patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets">>) => Promise<void>;
+  saveSettings: (tripId: string, patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people">>) => Promise<void>;
   loadingSettings: boolean;
 };
 
@@ -36,6 +36,7 @@ function makeFallback(tripId: string): TripSettings {
     totalBudgetCents: null,
     categoryBudgets: [],
     members: [],
+    people: [],
   };
 }
 
@@ -58,7 +59,6 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
         return next;
       });
     } catch {
-      // Backend not wired yet — use cache or fallback
       setSettingsMap((prev) => {
         if (prev[tripId]) return prev;
         const fallback = makeFallback(tripId);
@@ -74,9 +74,8 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
   const saveSettings = useCallback(
     async (
       tripId: string,
-      patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets">>
+      patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people">>
     ) => {
-      // Optimistic update first
       setSettingsMap((prev) => {
         const existing = prev[tripId] ?? makeFallback(tripId);
         const next = { ...prev, [tripId]: { ...existing, ...patch } };
@@ -91,7 +90,7 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
           return next;
         });
       } catch {
-        // Backend not wired yet — local save is enough for now
+        // Backend not wired yet — local save is enough
       }
     },
     []

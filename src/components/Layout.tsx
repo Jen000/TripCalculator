@@ -249,93 +249,27 @@ export default function Layout({ children, onLogout, user, mode, onToggleMode }:
           )}
 
           <List disablePadding sx={{ mt: 1 }}>
-            <ListItemButton
-              selected={location.pathname === "/"}
-              onClick={() => go("/")}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                "&.Mui-selected": {
-                  bgcolor: alpha(theme.palette.primary.main, 0.14),
-                },
-                "&.Mui-selected:hover": {
-                  bgcolor: alpha(theme.palette.primary.main, 0.2),
-                },
-              }}
-            >
-              <ListItemIcon>
-                <DescriptionOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText primary="Summary" />
-            </ListItemButton>
-
-            <ListItemButton
-              selected={location.pathname === "/expenses"}
-              onClick={() => go("/expenses")}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                "&.Mui-selected": {
-                  bgcolor: alpha(theme.palette.primary.main, 0.14),
-                },
-                "&.Mui-selected:hover": {
-                  bgcolor: alpha(theme.palette.primary.main, 0.2),
-                },
-              }}
-            >
-              <ListItemIcon>
-                <AddCircleOutlineIcon />
-              </ListItemIcon>
-              <ListItemText primary="Add Expense" />
-            </ListItemButton>
-
-            <ListItemButton
-              selected={location.pathname === "/settle-up"}
-              onClick={() => go("/settle-up")}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                "&.Mui-selected": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
-                "&.Mui-selected:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
-              }}
-            >
-              <ListItemIcon>
-                <BalanceOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText primary="Settle Up" />
-            </ListItemButton>
-
-            <ListItemButton
-              selected={location.pathname === "/trip-settings"}
-              onClick={() => go("/trip-settings")}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                "&.Mui-selected": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
-                "&.Mui-selected:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
-              }}
-            >
-              <ListItemIcon>
-                <TuneOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText primary="Trip Settings" />
-            </ListItemButton>
-
-            <ListItemButton
-              selected={location.pathname === "/settings"}
-              onClick={() => go("/settings")}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                "&.Mui-selected": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
-                "&.Mui-selected:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
-              }}
-            >
-              <ListItemIcon>
-                <SettingsOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText primary="Settings" />
-            </ListItemButton>
+            {[
+              { path: "/", label: "Summary", icon: <DescriptionOutlinedIcon /> },
+              { path: "/expenses", label: "Add Expense", icon: <AddCircleOutlineIcon /> },
+              { path: "/settle-up", label: "Settle Up", icon: <BalanceOutlinedIcon /> },
+              { path: "/trip-settings", label: "Trip Settings", icon: <TuneOutlinedIcon /> },
+              { path: "/settings", label: "Account Settings", icon: <SettingsOutlinedIcon /> },
+            ].map(({ path, label, icon }) => (
+              <ListItemButton
+                key={path}
+                selected={location.pathname === path}
+                onClick={() => go(path)}
+                sx={{
+                  borderRadius: 2, mb: 0.5,
+                  "&.Mui-selected": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
+                  "&.Mui-selected:hover": { bgcolor: alpha(theme.palette.primary.main, 0.2) },
+                }}
+              >
+                <ListItemIcon>{icon}</ListItemIcon>
+                <ListItemText primary={label} />
+              </ListItemButton>
+            ))}
           </List>
 
           <Divider sx={{ my: 2 }} />
@@ -361,7 +295,10 @@ export default function Layout({ children, onLogout, user, mode, onToggleMode }:
         </Box>
       </Drawer>
 
-      <Container maxWidth="sm" sx={{ mt: 2, pb: 4, px: { xs: 1.5, sm: 2 } }}>
+      <Container
+        maxWidth={location.pathname === "/" ? "xl" : "sm"}
+        sx={{ mt: 2, pb: 4, px: { xs: 1.5, sm: 2, md: location.pathname === "/" ? 4 : 2 } }}
+      >
         {children}
       </Container>
     </Box>

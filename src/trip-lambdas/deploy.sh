@@ -27,6 +27,8 @@ declare -A FUNCTIONS=(
   ["get-payments"]="payments/getPayments.js"
   ["post-payment"]="payments/postPayment.js"
   ["delete-payment"]="payments/deletePayment.js"
+  ["get-me"]="users/getMe.js"
+  ["put-me"]="users/putMe.js"
 )
 
 TMP_DIR=$(mktemp -d)

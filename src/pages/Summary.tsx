@@ -8,8 +8,6 @@ import {
 import { useTheme, alpha } from "@mui/material/styles";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import BalanceOutlinedIcon from "@mui/icons-material/BalanceOutlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { useNavigate } from "react-router-dom";
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
@@ -183,18 +181,10 @@ export default function Summary() {
         {/* Header */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
           <Typography variant="h5" fontWeight={800}>Summary — {activeTripName}</Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Button variant="outlined" size="small" startIcon={<BalanceOutlinedIcon />} onClick={() => navigate("/settle-up")}>
-              Settle Up
-            </Button>
-            <Button variant="outlined" size="small" startIcon={<SettingsOutlinedIcon />} onClick={() => navigate("/trip-settings")}>
-              Trip Settings
-            </Button>
-            <Button variant="outlined" size="small" disabled={!activeTripId || loadingTrips || loading}
-              onClick={() => activeTripId && exportTripCsv(activeTripId, activeTripName)}>
-              Export CSV
-            </Button>
-          </Stack>
+          <Button variant="outlined" size="small" disabled={!activeTripId || loadingTrips || loading}
+            onClick={() => activeTripId && exportTripCsv(activeTripId, activeTripName)}>
+            Export CSV
+          </Button>
         </Stack>
 
         {error && <Alert severity="error">{error}</Alert>}
@@ -205,55 +195,32 @@ export default function Summary() {
 
         {!loadingTrips && !loading && !error && expenses.length > 0 && (
           <>
-            {/* KPI cards */}
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            {/* ── Row 1: KPI cards ── */}
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2 }}>
               {[
                 { label: "Total Spend", value: formatMoney(totalCents) },
                 { label: "Expenses", value: String(expenses.length) },
                 { label: "Avg per Expense", value: formatMoney(expenses.length ? Math.round(totalCents / expenses.length) : 0) },
               ].map(({ label, value }) => (
-                <Card key={label} sx={{ flex: 1 }}>
-                  <CardContent>
+                <Card key={label}>
+                  <CardContent sx={{ py: 2 }}>
                     <Typography variant="overline" sx={{ opacity: 0.75 }}>{label}</Typography>
                     <Typography variant="h4" fontWeight={900}>{value}</Typography>
                   </CardContent>
                 </Card>
               ))}
-            </Stack>
+            </Box>
 
-            {/* Budget */}
-            {hasBudget && (
+            {/* ── Row 2: Charts side by side ── */}
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
               <Card>
-                <CardContent>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                    <Typography variant="h6" fontWeight={800}>Budget</Typography>
-                    <Button size="small" onClick={() => navigate("/trip-settings")}>Edit</Button>
-                  </Stack>
-                  <Divider sx={{ mb: 2 }} />
-                  <Stack spacing={1.5}>
-                    {settings!.totalBudgetCents !== null && (
-                      <BudgetBar label="Total Trip" spentCents={totalCents} limitCents={settings!.totalBudgetCents} isTotal />
-                    )}
-                    {settings!.categoryBudgets.length > 0 && settings!.totalBudgetCents !== null && <Divider />}
-                    {settings!.categoryBudgets.map((cb) => (
-                      <BudgetBar key={cb.category} label={cb.category}
-                        spentCents={spentByCategory.get(cb.category) ?? 0} limitCents={cb.limitCents} />
-                    ))}
-                  </Stack>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Charts: donut + bar */}
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <Card sx={{ flex: 1 }}>
                 <CardContent>
                   <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Spend by Category</Typography>
                   <Divider sx={{ mb: 2 }} />
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie data={categoryTotals.map((r) => ({ name: r.key, value: r.cents }))}
-                        cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
+                        cx="50%" cy="50%" innerRadius={65} outerRadius={100} paddingAngle={2} dataKey="value">
                         {categoryTotals.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                       </Pie>
                       <RechartsTooltip
@@ -267,17 +234,17 @@ export default function Summary() {
                 </CardContent>
               </Card>
 
-              <Card sx={{ flex: 1 }}>
+              <Card>
                 <CardContent>
                   <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Category Breakdown</Typography>
                   <Divider sx={{ mb: 2 }} />
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={categoryTotals.slice(0, 8).map((r) => ({
-                      name: r.key.length > 10 ? r.key.slice(0, 10) + "…" : r.key, cents: r.cents,
-                    }))} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
+                      name: r.key.length > 12 ? r.key.slice(0, 12) + "…" : r.key, cents: r.cents,
+                    }))} margin={{ top: 4, right: 8, left: 0, bottom: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} angle={-30} textAnchor="end" interval={0} />
-                      <YAxis tickFormatter={formatMoneyShort} tick={{ fontSize: 10, fill: theme.palette.text.secondary }} width={44} />
+                      <YAxis tickFormatter={formatMoneyShort} tick={{ fontSize: 10, fill: theme.palette.text.secondary }} width={48} />
                       <RechartsTooltip
                         formatter={(v) => [typeof v === "number" ? formatMoney(v) : v, "Spent"]}
                         contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
@@ -289,50 +256,74 @@ export default function Summary() {
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-            </Stack>
+            </Box>
 
-            {/* Spending over time */}
-            {timelineData.length > 1 && (
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Spending Over Time</Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={timelineData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.25} />
-                          <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} vertical={false} />
-                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} interval="preserveStartEnd" />
-                      <YAxis tickFormatter={formatMoneyShort} tick={{ fontSize: 10, fill: theme.palette.text.secondary }} width={44} />
-                      <RechartsTooltip
-                        formatter={(v, name) => [typeof v === "number" ? formatMoney(v) : v, name === "cumulativeCents" ? "Total" : "Daily"]}
-                        contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                          background: theme.palette.background.paper, color: theme.palette.text.primary, fontSize: 12 }} />
-                      <Area type="monotone" dataKey="cumulativeCents" stroke={theme.palette.primary.main}
-                        strokeWidth={2} fill="url(#spendGrad)" dot={false} activeDot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="dailyCents"
-                        stroke={alpha(theme.palette.primary.main, 0.45)} strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                  <Stack direction="row" spacing={2} sx={{ mt: 1, pl: 1 }}>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Box sx={{ width: 16, height: 2, bgcolor: "primary.main", borderRadius: 1 }} />
-                      <Typography variant="caption" sx={{ opacity: 0.65 }}>Cumulative</Typography>
+            {/* ── Row 3: Timeline + Budget side by side ── */}
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: hasBudget && timelineData.length > 1 ? "1fr 1fr" : "1fr" }, gap: 2 }}>
+              {timelineData.length > 1 && (
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Spending Over Time</Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <ResponsiveContainer width="100%" height={220}>
+                      <AreaChart data={timelineData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.25} />
+                            <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} interval="preserveStartEnd" />
+                        <YAxis tickFormatter={formatMoneyShort} tick={{ fontSize: 10, fill: theme.palette.text.secondary }} width={48} />
+                        <RechartsTooltip
+                          formatter={(v, name) => [typeof v === "number" ? formatMoney(v) : v, name === "cumulativeCents" ? "Total" : "Daily"]}
+                          contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                            background: theme.palette.background.paper, color: theme.palette.text.primary, fontSize: 12 }} />
+                        <Area type="monotone" dataKey="cumulativeCents" stroke={theme.palette.primary.main}
+                          strokeWidth={2} fill="url(#spendGrad)" dot={false} activeDot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="dailyCents"
+                          stroke={alpha(theme.palette.primary.main, 0.45)} strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    <Stack direction="row" spacing={2} sx={{ mt: 1, pl: 1 }}>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Box sx={{ width: 16, height: 2, bgcolor: "primary.main", borderRadius: 1 }} />
+                        <Typography variant="caption" sx={{ opacity: 0.65 }}>Cumulative</Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Box sx={{ width: 16, height: 2, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.45) }} />
+                        <Typography variant="caption" sx={{ opacity: 0.65 }}>Daily</Typography>
+                      </Stack>
                     </Stack>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Box sx={{ width: 16, height: 2, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.45) }} />
-                      <Typography variant="caption" sx={{ opacity: 0.65 }}>Daily</Typography>
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Recent Expenses */}
+              {hasBudget && (
+                <Card>
+                  <CardContent>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                      <Typography variant="h6" fontWeight={800}>Budget</Typography>
+                      <Button size="small" onClick={() => navigate("/trip-settings")}>Edit</Button>
+                    </Stack>
+                    <Divider sx={{ mb: 2 }} />
+                    <Stack spacing={1.5}>
+                      {settings!.totalBudgetCents !== null && (
+                        <BudgetBar label="Total Trip" spentCents={totalCents} limitCents={settings!.totalBudgetCents} isTotal />
+                      )}
+                      {settings!.categoryBudgets.length > 0 && settings!.totalBudgetCents !== null && <Divider />}
+                      {settings!.categoryBudgets.map((cb) => (
+                        <BudgetBar key={cb.category} label={cb.category}
+                          spentCents={spentByCategory.get(cb.category) ?? 0} limitCents={cb.limitCents} />
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
+            </Box>
+
+            {/* ── Row 4: Recent Expenses full width ── */}
             <Card>
               <CardContent>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
@@ -347,10 +338,8 @@ export default function Summary() {
                     Swipe to see all columns →
                   </Typography>
                 )}
-                <TableContainer component={Paper} elevation={0} sx={{
-                  bgcolor: "transparent", overflowX: isMobile ? "auto" : "visible", WebkitOverflowScrolling: "touch",
-                }}>
-                  <Table size="small" sx={{ minWidth: isMobile ? 760 : "auto" }}>
+                <TableContainer component={Paper} elevation={0} sx={{ bgcolor: "transparent", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                  <Table size="small" sx={{ minWidth: 640 }}>
                     <TableHead>
                       <TableRow>
                         <TableCell>Date</TableCell>
@@ -366,7 +355,7 @@ export default function Summary() {
                         <TableRow key={e.expenseId}
                           sx={{ "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
                           <TableCell sx={{ whiteSpace: "nowrap" }}>{e.date}</TableCell>
-                          <TableCell sx={{ minWidth: isMobile ? 160 : "auto" }}>{e.description}</TableCell>
+                          <TableCell>{e.description}</TableCell>
                           <TableCell><Chip size="small" label={e.category} /></TableCell>
                           <TableCell sx={{ whiteSpace: "nowrap" }}>{e.whoPaid}</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>

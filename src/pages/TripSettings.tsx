@@ -1,19 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Divider,
-  IconButton,
-  MenuItem,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
+  Dialog, DialogActions, DialogContent, DialogTitle, Divider,
+  IconButton, MenuItem, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -26,19 +15,21 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
 
 import { useTrip } from "../context/TripContext";
+import { useUser } from "../context/UserContext";
 import { useTripSettings } from "../context/TripSettingsContext";
 import { inviteTripMember, removeTripMember, renameTripApi } from "../api/tripSettings";
+import { deleteTrip } from "../api/trips";
 
-export default function TripSettings() {
+export default function TripSettingsPage() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { trips, activeTripId, refreshTrips } = useTrip();
+  const { trips, activeTripId, refreshTrips, addTrip, removeTripLocal } = useTrip();
+  const { profile } = useUser();
   const { getSettings, loadSettings, saveSettings } = useTripSettings();
 
   const trip = useMemo(() => trips.find((t) => t.tripId === activeTripId), [trips, activeTripId]);
   const settings = activeTripId ? getSettings(activeTripId) : null;
 
-  // ── Load settings on mount ──────────────────────────────────────────────────
   useEffect(() => {
     if (activeTripId) loadSettings(activeTripId);
   }, [activeTripId]);
@@ -67,6 +58,52 @@ export default function TripSettings() {
     }
   };
 
+  // ── People ──────────────────────────────────────────────────────────────────
+  const [people, setPeople] = useState<string[]>(settings?.people ?? []);
+  const [newPerson, setNewPerson] = useState("");
+  const [peopleMsg, setPeopleMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [peopleSaving, setPeopleSaving] = useState(false);
+
+  // Sync people from settings, auto-add current user's first name if not present
+  useEffect(() => {
+    if (!settings) return;
+    let base = settings.people ?? [];
+    if (profile?.firstName && !base.includes(profile.firstName)) {
+      base = [profile.firstName, ...base];
+    }
+    setPeople(base);
+  }, [settings?.people?.join(","), profile?.firstName]);
+
+  const addPerson = () => {
+    const trimmed = newPerson.trim();
+    if (!trimmed) return;
+    if (people.map((p) => p.toLowerCase()).includes(trimmed.toLowerCase())) {
+      setPeopleMsg({ type: "error", text: "That name is already in the list." });
+      return;
+    }
+    setPeople((prev) => [...prev, trimmed]);
+    setNewPerson("");
+    setPeopleMsg(null);
+  };
+
+  const removePerson = (name: string) => {
+    setPeople((prev) => prev.filter((p) => p !== name));
+  };
+
+  const savePeople = async () => {
+    if (!activeTripId) return;
+    setPeopleSaving(true);
+    setPeopleMsg(null);
+    try {
+      await saveSettings(activeTripId, { people });
+      setPeopleMsg({ type: "success", text: "People list saved." });
+    } catch (e: any) {
+      setPeopleMsg({ type: "error", text: e?.message ?? "Failed to save." });
+    } finally {
+      setPeopleSaving(false);
+    }
+  };
+
   // ── Categories ──────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState<string[]>(settings?.categories ?? []);
   const [newCategory, setNewCategory] = useState("");
@@ -89,10 +126,6 @@ export default function TripSettings() {
     setCatMsg(null);
   };
 
-  const removeCategory = (cat: string) => {
-    setCategories((prev) => prev.filter((c) => c !== cat));
-  };
-
   const saveCategories = async () => {
     if (!activeTripId) return;
     setCatSaving(true);
@@ -112,10 +145,7 @@ export default function TripSettings() {
     settings?.totalBudgetCents ? (settings.totalBudgetCents / 100).toFixed(0) : ""
   );
   const [catBudgets, setCatBudgets] = useState(
-    settings?.categoryBudgets.map((cb) => ({
-      category: cb.category,
-      input: (cb.limitCents / 100).toFixed(0),
-    })) ?? []
+    settings?.categoryBudgets.map((cb) => ({ category: cb.category, input: (cb.limitCents / 100).toFixed(0) })) ?? []
   );
   const [newBudgetCat, setNewBudgetCat] = useState("");
   const [budgetMsg, setBudgetMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -124,12 +154,7 @@ export default function TripSettings() {
   useEffect(() => {
     if (!settings) return;
     setTotalInput(settings.totalBudgetCents ? (settings.totalBudgetCents / 100).toFixed(0) : "");
-    setCatBudgets(
-      settings.categoryBudgets.map((cb) => ({
-        category: cb.category,
-        input: (cb.limitCents / 100).toFixed(0),
-      }))
-    );
+    setCatBudgets(settings.categoryBudgets.map((cb) => ({ category: cb.category, input: (cb.limitCents / 100).toFixed(0) })));
   }, [settings?.totalBudgetCents, settings?.categoryBudgets?.length]);
 
   useEffect(() => {
@@ -149,14 +174,8 @@ export default function TripSettings() {
         setBudgetMsg({ type: "error", text: "Invalid total budget." });
         return;
       }
-      const categoryBudgets = catBudgets.map((cb) => ({
-        category: cb.category,
-        limitCents: Math.round(Number(cb.input) * 100),
-      }));
-      await saveSettings(activeTripId, {
-        totalBudgetCents: total !== null ? Math.round(total * 100) : null,
-        categoryBudgets,
-      });
+      const categoryBudgets = catBudgets.map((cb) => ({ category: cb.category, limitCents: Math.round(Number(cb.input) * 100) }));
+      await saveSettings(activeTripId, { totalBudgetCents: total !== null ? Math.round(total * 100) : null, categoryBudgets });
       setBudgetMsg({ type: "success", text: "Budget saved." });
     } catch (e: any) {
       setBudgetMsg({ type: "error", text: e?.message ?? "Failed to save budget." });
@@ -165,9 +184,7 @@ export default function TripSettings() {
     }
   };
 
-  const availableBudgetCats = categories.filter(
-    (c) => !catBudgets.find((cb) => cb.category === c)
-  );
+  const availableBudgetCats = categories.filter((c) => !catBudgets.find((cb) => cb.category === c));
 
   // ── Members / Invite ────────────────────────────────────────────────────────
   const [inviteEmail, setInviteEmail] = useState("");
@@ -182,7 +199,7 @@ export default function TripSettings() {
     try {
       await inviteTripMember(activeTripId, inviteEmail.trim());
       setInviteEmail("");
-      setInviteMsg({ type: "success", text: "Invite sent! They'll get an email to join this trip." });
+      setInviteMsg({ type: "success", text: "Invite sent!" });
       await loadSettings(activeTripId);
     } catch (e: any) {
       setInviteMsg({ type: "error", text: e?.message ?? "Failed to send invite." });
@@ -197,10 +214,57 @@ export default function TripSettings() {
     try {
       await removeTripMember(activeTripId, userId);
       await loadSettings(activeTripId);
+    } catch { /* silently fail */ }
+    finally { setRemovingMember(null); }
+  };
+
+  // ── Create Trip ─────────────────────────────────────────────────────────────
+  const [newTripName, setNewTripName] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleCreateTrip = async () => {
+    if (!newTripName.trim()) {
+      setCreateMsg({ type: "error", text: "Please enter a trip name." });
+      return;
+    }
+    setCreateLoading(true);
+    setCreateMsg(null);
+    try {
+      await addTrip(newTripName.trim());
+      setNewTripName("");
+      setCreateMsg({ type: "success", text: "Trip created! It's now your active trip." });
     } catch (e: any) {
-      // silently fail for now
+      setCreateMsg({ type: "error", text: e?.message ?? "Failed to create trip." });
     } finally {
-      setRemovingMember(null);
+      setCreateLoading(false);
+    }
+  };
+
+  // ── Delete Trip ─────────────────────────────────────────────────────────────
+  const [deleteTripId, setDeleteTripId] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [tripDeleting, setTripDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const deleteTripLabel = useMemo(() => trips.find((t) => t.tripId === deleteTripId)?.name ?? "", [trips, deleteTripId]);
+  const confirmOk = deleteConfirmText.trim().toUpperCase() === "CONFIRM";
+
+  const handleConfirmDeleteTrip = async () => {
+    if (!deleteTripId) return;
+    setTripDeleting(true);
+    setDeleteMsg(null);
+    try {
+      await deleteTrip(deleteTripId);
+      removeTripLocal(deleteTripId);
+      setDeleteTripId("");
+      setDeleteMsg({ type: "success", text: "Trip deleted." });
+      setDeleteDialogOpen(false);
+    } catch (e: any) {
+      setDeleteMsg({ type: "error", text: e?.message ?? "Failed to delete trip." });
+    } finally {
+      setTripDeleting(false);
     }
   };
 
@@ -216,12 +280,8 @@ export default function TripSettings() {
   return (
     <Stack spacing={2}>
       <Stack direction="row" alignItems="center" spacing={1}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/")} size="small">
-          Summary
-        </Button>
-        <Typography variant="h5" fontWeight={800} sx={{ flex: 1 }}>
-          Trip Settings
-        </Typography>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/")} size="small">Summary</Button>
+        <Typography variant="h5" fontWeight={800} sx={{ flex: 1 }}>Trip Settings</Typography>
       </Stack>
 
       {/* ── Rename ── */}
@@ -231,30 +291,16 @@ export default function TripSettings() {
           <Divider sx={{ my: 1.5 }} />
           {renameMsg && <Alert severity={renameMsg.type} sx={{ mb: 1.5 }}>{renameMsg.text}</Alert>}
           <Stack direction="row" spacing={1} alignItems="center">
-            <TextField
-              value={tripNameInput}
-              onChange={(e) => setTripNameInput(e.target.value)}
-              disabled={!renamingTrip || renameLoading}
-              fullWidth
-              size="small"
-            />
+            <TextField value={tripNameInput} onChange={(e) => setTripNameInput(e.target.value)}
+              disabled={!renamingTrip || renameLoading} fullWidth size="small" />
             {!renamingTrip ? (
-              <Button
-                startIcon={<EditOutlinedIcon />}
-                onClick={() => setRenamingTrip(true)}
-                variant="outlined"
-                size="small"
-              >
+              <Button startIcon={<EditOutlinedIcon />} onClick={() => setRenamingTrip(true)} variant="outlined" size="small">
                 Rename
               </Button>
             ) : (
               <Stack direction="row" spacing={0.5}>
                 <Tooltip title="Save">
-                  <IconButton
-                    color="primary"
-                    onClick={handleRename}
-                    disabled={renameLoading || !tripNameInput.trim()}
-                  >
+                  <IconButton color="primary" onClick={handleRename} disabled={renameLoading || !tripNameInput.trim()}>
                     {renameLoading ? <CircularProgress size={18} /> : <CheckIcon />}
                   </IconButton>
                 </Tooltip>
@@ -269,22 +315,22 @@ export default function TripSettings() {
         </CardContent>
       </Card>
 
-      {/* ── Categories ── */}
+      {/* ── People ── */}
       <Card>
         <CardContent>
-          <Typography variant="h6" fontWeight={800}>Expense Categories</Typography>
+          <Typography variant="h6" fontWeight={800}>People on this Trip</Typography>
           <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
-            Customize the categories available when adding expenses to this trip.
+            These names appear in the "Who Paid" dropdown when adding expenses.
           </Typography>
           <Divider sx={{ my: 1.5 }} />
-          {catMsg && <Alert severity={catMsg.type} sx={{ mb: 1.5 }}>{catMsg.text}</Alert>}
+          {peopleMsg && <Alert severity={peopleMsg.type} sx={{ mb: 1.5 }}>{peopleMsg.text}</Alert>}
 
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
-            {categories.map((cat) => (
+            {people.map((person) => (
               <Chip
-                key={cat}
-                label={cat}
-                onDelete={() => removeCategory(cat)}
+                key={person}
+                label={person}
+                onDelete={() => removePerson(person)}
                 sx={{
                   fontWeight: 600,
                   bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -292,37 +338,57 @@ export default function TripSettings() {
                 }}
               />
             ))}
-            {categories.length === 0 && (
-              <Typography variant="body2" sx={{ opacity: 0.6 }}>No categories yet.</Typography>
+            {people.length === 0 && (
+              <Typography variant="body2" sx={{ opacity: 0.6 }}>No people added yet.</Typography>
             )}
           </Box>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <TextField
-              label="New category"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addCategory(); }}
+              label="Add a person"
+              value={newPerson}
+              onChange={(e) => setNewPerson(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }}
               size="small"
               fullWidth
+              placeholder="e.g. Sam"
             />
-            <Button
-              variant="outlined"
-              startIcon={<AddCircleOutlineIcon />}
-              onClick={addCategory}
-              disabled={!newCategory.trim()}
-            >
+            <Button variant="outlined" startIcon={<AddCircleOutlineIcon />} onClick={addPerson} disabled={!newPerson.trim()}>
               Add
             </Button>
           </Stack>
 
-          <Button
-            variant="contained"
-            onClick={saveCategories}
-            disabled={catSaving}
-            sx={{ mt: 2 }}
-            fullWidth
-          >
+          <Button variant="contained" onClick={savePeople} disabled={peopleSaving} sx={{ mt: 2 }} fullWidth>
+            {peopleSaving ? <CircularProgress size={18} color="inherit" /> : "Save People"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ── Categories ── */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" fontWeight={800}>Expense Categories</Typography>
+          <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
+            Customize the categories available when adding expenses.
+          </Typography>
+          <Divider sx={{ my: 1.5 }} />
+          {catMsg && <Alert severity={catMsg.type} sx={{ mb: 1.5 }}>{catMsg.text}</Alert>}
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
+            {categories.map((cat) => (
+              <Chip key={cat} label={cat} onDelete={() => setCategories((prev) => prev.filter((c) => c !== cat))}
+                sx={{ fontWeight: 600, bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  "& .MuiChip-deleteIcon": { color: theme.palette.error.main } }} />
+            ))}
+            {categories.length === 0 && <Typography variant="body2" sx={{ opacity: 0.6 }}>No categories yet.</Typography>}
+          </Box>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField label="New category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addCategory(); }} size="small" fullWidth />
+            <Button variant="outlined" startIcon={<AddCircleOutlineIcon />} onClick={addCategory} disabled={!newCategory.trim()}>
+              Add
+            </Button>
+          </Stack>
+          <Button variant="contained" onClick={saveCategories} disabled={catSaving} sx={{ mt: 2 }} fullWidth>
             {catSaving ? <CircularProgress size={18} color="inherit" /> : "Save Categories"}
           </Button>
         </CardContent>
@@ -337,92 +403,41 @@ export default function TripSettings() {
           </Typography>
           <Divider sx={{ my: 1.5 }} />
           {budgetMsg && <Alert severity={budgetMsg.type} sx={{ mb: 1.5 }}>{budgetMsg.text}</Alert>}
-
           <Stack spacing={2}>
-            <TextField
-              label="Total trip budget (optional)"
-              value={totalInput}
-              onChange={(e) => setTotalInput(e.target.value)}
-              type="number"
-              inputProps={{ min: 0, step: "1" }}
-              size="small"
-              fullWidth
-              placeholder="e.g. 2000"
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 0.5, opacity: 0.6 }}>$</Typography>,
-              }}
-            />
-
+            <TextField label="Total trip budget (optional)" value={totalInput} onChange={(e) => setTotalInput(e.target.value)}
+              type="number" inputProps={{ min: 0, step: "1" }} size="small" fullWidth placeholder="e.g. 2000"
+              InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, opacity: 0.6 }}>$</Typography> }} />
             {catBudgets.length > 0 && (
               <>
                 <Divider />
                 <Typography variant="body2" fontWeight={700}>Per-category limits</Typography>
                 {catBudgets.map((cb) => (
                   <Stack key={cb.category} direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" sx={{ minWidth: 140, fontWeight: 600 }}>
-                      {cb.category}
-                    </Typography>
-                    <TextField
-                      value={cb.input}
-                      onChange={(e) =>
-                        setCatBudgets((prev) =>
-                          prev.map((x) => x.category === cb.category ? { ...x, input: e.target.value } : x)
-                        )
-                      }
-                      type="number"
-                      inputProps={{ min: 0, step: "1" }}
-                      size="small"
-                      fullWidth
-                      placeholder="Limit $"
-                    />
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => setCatBudgets((prev) => prev.filter((x) => x.category !== cb.category))}
-                    >
+                    <Typography variant="body2" sx={{ minWidth: 140, fontWeight: 600 }}>{cb.category}</Typography>
+                    <TextField value={cb.input}
+                      onChange={(e) => setCatBudgets((prev) => prev.map((x) => x.category === cb.category ? { ...x, input: e.target.value } : x))}
+                      type="number" inputProps={{ min: 0, step: "1" }} size="small" fullWidth placeholder="Limit $" />
+                    <IconButton size="small" color="error"
+                      onClick={() => setCatBudgets((prev) => prev.filter((x) => x.category !== cb.category))}>
                       <DeleteOutlineIcon fontSize="small" />
                     </IconButton>
                   </Stack>
                 ))}
               </>
             )}
-
             {availableBudgetCats.length > 0 && (
               <Stack direction="row" spacing={1}>
-                <TextField
-                  select
-                  value={newBudgetCat}
-                  onChange={(e) => setNewBudgetCat(e.target.value)}
-                  size="small"
-                  sx={{ flex: 1 }}
-                  label="Category"
-                >
-                  {availableBudgetCats.map((c) => (
-                    <MenuItem key={c} value={c}>{c}</MenuItem>
-                  ))}
+                <TextField select value={newBudgetCat} onChange={(e) => setNewBudgetCat(e.target.value)} size="small" sx={{ flex: 1 }} label="Category">
+                  {availableBudgetCats.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                 </TextField>
-                <Button
-                  variant="outlined"
-                  startIcon={<AddCircleOutlineIcon />}
-                  onClick={() => {
-                    if (!newBudgetCat) return;
-                    setCatBudgets((prev) => [...prev, { category: newBudgetCat, input: "" }]);
-                    const remaining = availableBudgetCats.filter((c) => c !== newBudgetCat);
-                    setNewBudgetCat(remaining[0] ?? "");
-                  }}
-                  disabled={!newBudgetCat}
-                >
+                <Button variant="outlined" startIcon={<AddCircleOutlineIcon />}
+                  onClick={() => { if (!newBudgetCat) return; setCatBudgets((prev) => [...prev, { category: newBudgetCat, input: "" }]); const remaining = availableBudgetCats.filter((c) => c !== newBudgetCat); setNewBudgetCat(remaining[0] ?? ""); }}
+                  disabled={!newBudgetCat}>
                   Add
                 </Button>
               </Stack>
             )}
-
-            <Button
-              variant="contained"
-              onClick={saveBudget}
-              disabled={budgetSaving}
-              fullWidth
-            >
+            <Button variant="contained" onClick={saveBudget} disabled={budgetSaving} fullWidth>
               {budgetSaving ? <CircularProgress size={18} color="inherit" /> : "Save Budget"}
             </Button>
           </Stack>
@@ -434,45 +449,24 @@ export default function TripSettings() {
         <CardContent>
           <Typography variant="h6" fontWeight={800}>Trip Members</Typography>
           <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
-            Invite someone by email to share this trip. They'll be able to add and view expenses.
+            Invite someone by email to share this trip.
           </Typography>
           <Divider sx={{ my: 1.5 }} />
           {inviteMsg && <Alert severity={inviteMsg.type} sx={{ mb: 1.5 }}>{inviteMsg.text}</Alert>}
-
-          {/* Current members */}
           {settings?.members && settings.members.length > 0 && (
             <Stack spacing={1} sx={{ mb: 2 }}>
               {settings.members.map((m) => (
-                <Stack
-                  key={m.userId}
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.primary.main, 0.05),
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-                  }}
-                >
+                <Stack key={m.userId} direction="row" alignItems="center" justifyContent="space-between"
+                  sx={{ px: 1.5, py: 1, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.05),
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
                   <Stack>
                     <Typography variant="body2" fontWeight={700}>{m.email}</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.6, textTransform: "capitalize" }}>
-                      {m.role}
-                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.6, textTransform: "capitalize" }}>{m.role}</Typography>
                   </Stack>
                   {m.role !== "owner" && (
                     <Tooltip title="Remove member">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleRemoveMember(m.userId)}
-                        disabled={removingMember === m.userId}
-                      >
-                        {removingMember === m.userId
-                          ? <CircularProgress size={16} />
-                          : <DeleteOutlineIcon fontSize="small" />}
+                      <IconButton size="small" color="error" onClick={() => handleRemoveMember(m.userId)} disabled={removingMember === m.userId}>
+                        {removingMember === m.userId ? <CircularProgress size={16} /> : <DeleteOutlineIcon fontSize="small" />}
                       </IconButton>
                     </Tooltip>
                   )}
@@ -480,29 +474,84 @@ export default function TripSettings() {
               ))}
             </Stack>
           )}
-
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField
-              label="Email address"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleInvite(); }}
-              type="email"
-              size="small"
-              fullWidth
-              disabled={inviteLoading}
-            />
-            <Button
-              variant="contained"
+            <TextField label="Email address" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleInvite(); }} type="email" size="small" fullWidth disabled={inviteLoading} />
+            <Button variant="contained"
               startIcon={inviteLoading ? <CircularProgress size={16} color="inherit" /> : <PersonAddOutlinedIcon />}
-              onClick={handleInvite}
-              disabled={inviteLoading || !inviteEmail.trim()}
-            >
+              onClick={handleInvite} disabled={inviteLoading || !inviteEmail.trim()}>
               Invite
             </Button>
           </Stack>
         </CardContent>
       </Card>
+
+      {/* ── Create Trip ── */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" fontWeight={800}>Create a New Trip</Typography>
+          <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
+            Create a new trip — it will become your active trip automatically.
+          </Typography>
+          <Divider sx={{ my: 1.5 }} />
+          {createMsg && <Alert severity={createMsg.type} sx={{ mb: 1.5 }}>{createMsg.text}</Alert>}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField label="Trip name" value={newTripName} onChange={(e) => setNewTripName(e.target.value)}
+              fullWidth disabled={createLoading} />
+            <Button variant="contained" onClick={handleCreateTrip} disabled={createLoading || !newTripName.trim()}>
+              {createLoading ? <CircularProgress size={18} color="inherit" /> : "Create"}
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* ── Delete Trip ── */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" fontWeight={800} color="error">Danger Zone</Typography>
+          <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
+            Permanently delete a trip and all its expenses.
+          </Typography>
+          <Divider sx={{ my: 1.5 }} />
+          {deleteMsg && <Alert severity={deleteMsg.type} sx={{ mb: 1.5 }}>{deleteMsg.text}</Alert>}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField select label="Trip to delete" value={deleteTripId}
+              onChange={(e) => setDeleteTripId(e.target.value)} fullWidth disabled={tripDeleting}>
+              <MenuItem value=""><em>Select a trip…</em></MenuItem>
+              {trips.map((t) => <MenuItem key={t.tripId} value={t.tripId}>{t.name}</MenuItem>)}
+            </TextField>
+            <Button color="error" variant="contained" startIcon={<DeleteOutlineIcon />}
+              onClick={() => { setDeleteConfirmText(""); setDeleteDialogOpen(true); }}
+              disabled={tripDeleting || !deleteTripId}>
+              Delete
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* Delete dialog */}
+      <Dialog open={deleteDialogOpen} onClose={tripDeleting ? undefined : () => setDeleteDialogOpen(false)}
+        maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Delete trip?</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5} sx={{ mt: 1 }}>
+            <Alert severity="warning">
+              This will permanently delete <b>{deleteTripLabel || "this trip"}</b> and all its expenses. This cannot be undone.
+            </Alert>
+            <Typography variant="body2">Type <b>CONFIRM</b> to proceed.</Typography>
+            <TextField autoFocus label="Type CONFIRM" value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)} disabled={tripDeleting} fullWidth />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={tripDeleting}>Cancel</Button>
+          <Button color="error" variant="contained"
+            startIcon={tripDeleting ? <CircularProgress size={18} color="inherit" /> : <DeleteOutlineIcon />}
+            onClick={handleConfirmDeleteTrip} disabled={!confirmOk || tripDeleting}>
+            {tripDeleting ? "Deleting…" : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
