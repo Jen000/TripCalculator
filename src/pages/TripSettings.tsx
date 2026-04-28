@@ -33,7 +33,7 @@ export default function TripSettings() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { trips, activeTripId, refreshTrips } = useTrip();
-  const { getSettings, loadSettings, saveSettings, loadingSettings } = useTripSettings();
+  const { getSettings, loadSettings, saveSettings } = useTripSettings();
 
   const trip = useMemo(() => trips.find((t) => t.tripId === activeTripId), [trips, activeTripId]);
   const settings = activeTripId ? getSettings(activeTripId) : null;

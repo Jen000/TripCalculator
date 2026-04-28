@@ -103,7 +103,6 @@ interface Props {
 }
 
 export default function BudgetCard({ tripId, expenses }: Props) {
-  const theme = useTheme();
   const { getBudget, setBudget } = useBudget();
   const budget = getBudget(tripId);
 
