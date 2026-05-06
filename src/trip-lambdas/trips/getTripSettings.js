@@ -23,7 +23,6 @@ export const handler = async (event) => {
       Key: { tripId },
     }));
 
-    // If no settings saved yet, return sensible defaults
     const item = result.Item;
     return response(200, {
       tripId,
@@ -31,6 +30,8 @@ export const handler = async (event) => {
       totalBudgetCents: item?.totalBudgetCents ?? null,
       categoryBudgets: item?.categoryBudgets ?? [],
       members: item?.members ?? [],
+      people: item?.people ?? [],
+      splitRules: item?.splitRules ?? { defaultSplit: [], categoryOverrides: [] },
     });
   } catch (err) {
     console.error("GET /trips/{tripId}/settings error:", err);

@@ -16,6 +16,7 @@ import { useTrip } from "../context/TripContext";
 import { useUser } from "../context/UserContext";
 import { useTripSettings } from "../context/TripSettingsContext";
 import { inviteTripMember, removeTripMember, renameTripApi } from "../api/tripSettings";
+import SplitRulesCard from "../components/SplitRulesCard";
 import { deleteTrip } from "../api/trips";
 
 export default function TripSettingsPage() {
@@ -31,10 +32,10 @@ export default function TripSettingsPage() {
 
   // ── Rename ──────────────────────────────────────────────────────────────────
   const [renamingTrip, setRenamingTrip] = useState(false);
-  const [tripNameInput, setTripNameInput] = useState(trip?.name ?? "");
+  const [tripNameInput, setTripNameInput] = useState("");
   const [renameLoading, setRenameLoading] = useState(false);
   const [renameMsg, setRenameMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  useEffect(() => { setTripNameInput(trip?.name ?? ""); }, [trip]);
+  useEffect(() => { setTripNameInput(trip?.name ?? ""); }, [trip?.name]);
 
   const handleRename = async () => {
     if (!activeTripId || !tripNameInput.trim()) return;
@@ -50,17 +51,38 @@ export default function TripSettingsPage() {
   };
 
   // ── People ──────────────────────────────────────────────────────────────────
-  const [people, setPeople] = useState<string[]>(settings?.people ?? []);
+  const [people, setPeople] = useState<string[]>([]);
   const [newPerson, setNewPerson] = useState("");
   const [peopleMsg, setPeopleMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [peopleSaving, setPeopleSaving] = useState(false);
 
+  const [peopleInitialized, setPeopleInitialized] = useState(false);
+
   useEffect(() => {
-    if (!settings) return;
+    // Only sync from settings once per trip, not on every settings update
+    if (!settings || peopleInitialized) return;
     let base = settings.people ?? [];
     if (profile?.firstName && !base.includes(profile.firstName)) base = [profile.firstName, ...base];
     setPeople(base);
-  }, [settings?.people?.join(","), profile?.firstName]);
+    setPeopleInitialized(true);
+  }, [settings?.tripId, settings?.people?.join(","), profile?.firstName]);
+
+  // Reset initialized flag when trip changes
+  useEffect(() => {
+    setPeopleInitialized(false);
+  }, [activeTripId]);
+
+  const savePeopleList = async (updated: string[]) => {
+    if (!activeTripId) return;
+    setPeopleSaving(true); setPeopleMsg(null);
+    try {
+      await saveSettings(activeTripId, { people: updated });
+      setPeople(updated);
+      setPeopleMsg({ type: "success", text: "Saved!" });
+    } catch (e: any) {
+      setPeopleMsg({ type: "error", text: e?.message ?? "Failed to save." });
+    } finally { setPeopleSaving(false); }
+  };
 
   const addPerson = () => {
     const trimmed = newPerson.trim();
@@ -68,42 +90,65 @@ export default function TripSettingsPage() {
     if (people.map((p) => p.toLowerCase()).includes(trimmed.toLowerCase())) {
       setPeopleMsg({ type: "error", text: "That name is already in the list." }); return;
     }
-    setPeople((prev) => [...prev, trimmed]);
-    setNewPerson(""); setPeopleMsg(null);
+    const updated = [...people, trimmed];
+    setNewPerson("");
+    savePeopleList(updated);
   };
 
-  const savePeople = async () => {
-    if (!activeTripId) return;
-    setPeopleSaving(true); setPeopleMsg(null);
-    try {
-      await saveSettings(activeTripId, { people });
-      setPeopleMsg({ type: "success", text: "People list saved." });
-    } catch (e: any) {
-      setPeopleMsg({ type: "error", text: e?.message ?? "Failed to save." });
-    } finally { setPeopleSaving(false); }
+  const removePerson = (name: string) => {
+    const updated = people.filter((p) => p !== name);
+    savePeopleList(updated);
   };
 
   // ── Categories ──────────────────────────────────────────────────────────────
-  const [categories, setCategories] = useState<string[]>(settings?.categories ?? []);
+  const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [catMsg, setCatMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [catSaving, setCatSaving] = useState(false);
-  useEffect(() => { if (settings?.categories) setCategories(settings.categories); }, [settings?.categories?.join(",")]);
 
-  const saveCategories = async () => {
+  const [categoriesInitialized, setCategoriesInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!settings?.categories || categoriesInitialized) return;
+    setCategories(settings.categories);
+    setCategoriesInitialized(true);
+  }, [settings?.tripId, settings?.categories?.join(",")]);
+
+  useEffect(() => {
+    setCategoriesInitialized(false);
+  }, [activeTripId]);
+
+  const saveCategoriesList = async (updated: string[]) => {
     if (!activeTripId) return;
     setCatSaving(true); setCatMsg(null);
     try {
-      await saveSettings(activeTripId, { categories });
-      setCatMsg({ type: "success", text: "Categories saved." });
+      await saveSettings(activeTripId, { categories: updated });
+      setCategories(updated);
+      setCatMsg({ type: "success", text: "Saved!" });
     } catch (e: any) {
       setCatMsg({ type: "error", text: e?.message ?? "Failed to save." });
     } finally { setCatSaving(false); }
   };
 
+  const addCategory = () => {
+    const t = newCategory.trim();
+    if (!t) return;
+    if (categories.map((c) => c.toLowerCase()).includes(t.toLowerCase())) {
+      setCatMsg({ type: "error", text: "Category already exists." }); return;
+    }
+    const updated = [...categories, t];
+    setNewCategory("");
+    saveCategoriesList(updated);
+  };
+
+  const removeCategory = (cat: string) => {
+    const updated = categories.filter((c) => c !== cat);
+    saveCategoriesList(updated);
+  };
+
   // ── Budget ──────────────────────────────────────────────────────────────────
-  const [totalInput, setTotalInput] = useState(settings?.totalBudgetCents ? (settings.totalBudgetCents / 100).toFixed(0) : "");
-  const [catBudgets, setCatBudgets] = useState(settings?.categoryBudgets.map((cb) => ({ category: cb.category, input: (cb.limitCents / 100).toFixed(0) })) ?? []);
+  const [totalInput, setTotalInput] = useState("");
+  const [catBudgets, setCatBudgets] = useState<{ category: string; input: string }[]>([]);
   const [newBudgetCat, setNewBudgetCat] = useState("");
   const [budgetMsg, setBudgetMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [budgetSaving, setBudgetSaving] = useState(false);
@@ -111,8 +156,13 @@ export default function TripSettingsPage() {
   useEffect(() => {
     if (!settings) return;
     setTotalInput(settings.totalBudgetCents ? (settings.totalBudgetCents / 100).toFixed(0) : "");
-    setCatBudgets(settings.categoryBudgets.map((cb) => ({ category: cb.category, input: (cb.limitCents / 100).toFixed(0) })));
-  }, [settings?.totalBudgetCents, settings?.categoryBudgets?.length]);
+    setCatBudgets(
+      (settings.categoryBudgets ?? []).map((cb) => ({
+        category: cb.category,
+        input: (cb.limitCents / 100).toFixed(0),
+      }))
+    );
+  }, [settings?.tripId, settings?.totalBudgetCents, settings?.categoryBudgets?.length]);
 
   useEffect(() => {
     const available = categories.filter((c) => !catBudgets.find((cb) => cb.category === c));
@@ -127,8 +177,14 @@ export default function TripSettingsPage() {
       if (total !== null && (!Number.isFinite(total) || total < 0)) {
         setBudgetMsg({ type: "error", text: "Invalid total budget." }); return;
       }
-      const categoryBudgets = catBudgets.map((cb) => ({ category: cb.category, limitCents: Math.round(Number(cb.input) * 100) }));
-      await saveSettings(activeTripId, { totalBudgetCents: total !== null ? Math.round(total * 100) : null, categoryBudgets });
+      const categoryBudgets = catBudgets.map((cb) => ({
+        category: cb.category,
+        limitCents: Math.round(Number(cb.input) * 100),
+      }));
+      await saveSettings(activeTripId, {
+        totalBudgetCents: total !== null ? Math.round(total * 100) : null,
+        categoryBudgets,
+      });
       setBudgetMsg({ type: "success", text: "Budget saved." });
     } catch (e: any) {
       setBudgetMsg({ type: "error", text: e?.message ?? "Failed to save." });
@@ -206,7 +262,26 @@ export default function TripSettingsPage() {
   if (!activeTripId) return (
     <Stack spacing={2}>
       <Typography variant="h5" fontWeight={800}>Trip Settings</Typography>
-      <Alert severity="info">Select a trip from the top bar first.</Alert>
+      <Alert severity="info">
+        You don't have a trip selected. Create one below to get started!
+      </Alert>
+      <Card>
+        <CardContent>
+          <Typography variant="h6" fontWeight={800}>Create a New Trip</Typography>
+          <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
+            Create your first trip to get started.
+          </Typography>
+          <Divider sx={{ my: 1.5 }} />
+          {createMsg && <Alert severity={createMsg.type} sx={{ mb: 1.5 }}>{createMsg.text}</Alert>}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField label="Trip name" value={newTripName} onChange={(e) => setNewTripName(e.target.value)}
+              fullWidth disabled={createLoading} size="small" />
+            <Button variant="contained" onClick={handleCreateTrip} disabled={createLoading || !newTripName.trim()}>
+              {createLoading ? <CircularProgress size={18} color="inherit" /> : "Create"}
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
     </Stack>
   );
 
@@ -215,7 +290,6 @@ export default function TripSettingsPage() {
       <Stack spacing={2}>
         <Typography variant="h5" fontWeight={800}>Trip Settings — {trip?.name}</Typography>
 
-        {/* ── Two column grid on desktop ── */}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2, alignItems: "start" }}>
 
           {/* ── LEFT COLUMN ── */}
@@ -260,23 +334,36 @@ export default function TripSettingsPage() {
                   These names populate the "Who Paid" dropdown when adding expenses.
                 </Typography>
                 <Divider sx={{ my: 1.5 }} />
-                {peopleMsg && <Alert severity={peopleMsg.type} sx={{ mb: 1.5 }}>{peopleMsg.text}</Alert>}
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
                   {people.map((person) => (
-                    <Chip key={person} label={person} onDelete={() => setPeople((prev) => prev.filter((p) => p !== person))}
-                      sx={{ fontWeight: 600, bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        "& .MuiChip-deleteIcon": { color: theme.palette.error.main } }} />
+                    <Chip
+                      key={person}
+                      label={person}
+                      onDelete={() => removePerson(person)}
+                      sx={{
+                        fontWeight: 600,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        "& .MuiChip-deleteIcon": { color: theme.palette.error.main },
+                      }}
+                    />
                   ))}
                   {people.length === 0 && <Typography variant="body2" sx={{ opacity: 0.6 }}>No people added yet.</Typography>}
                 </Box>
                 <Stack direction="row" spacing={1}>
                   <TextField label="Add a person" value={newPerson} onChange={(e) => setNewPerson(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }} size="small" fullWidth placeholder="e.g. Sam" />
-                  <Button variant="outlined" startIcon={<AddCircleOutlineIcon />} onClick={addPerson} disabled={!newPerson.trim()}>Add</Button>
+                    onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }}
+                    size="small" fullWidth placeholder="e.g. Sam" />
+                  <Button variant="outlined" startIcon={<AddCircleOutlineIcon />} onClick={addPerson} disabled={!newPerson.trim()}>
+                    Add
+                  </Button>
                 </Stack>
-                <Button variant="contained" onClick={savePeople} disabled={peopleSaving} sx={{ mt: 2 }} fullWidth>
-                  {peopleSaving ? <CircularProgress size={18} color="inherit" /> : "Save People"}
-                </Button>
+                {peopleMsg && <Alert severity={peopleMsg.type} sx={{ mt: 1.5 }}>{peopleMsg.text}</Alert>}
+                {peopleSaving && (
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                    <CircularProgress size={14} />
+                    <Typography variant="caption" sx={{ opacity: 0.65 }}>Saving…</Typography>
+                  </Stack>
+                )}
               </CardContent>
             </Card>
 
@@ -330,6 +417,16 @@ export default function TripSettingsPage() {
           {/* ── RIGHT COLUMN ── */}
           <Stack spacing={2}>
 
+            {/* Split Rules */}
+            {settings && (
+              <SplitRulesCard
+                people={people}
+                categories={categories}
+                splitRules={settings.splitRules ?? { defaultSplit: [], categoryOverrides: [] }}
+                onSave={(rules) => saveSettings(activeTripId!, { splitRules: rules })}
+              />
+            )}
+
             {/* Categories */}
             <Card>
               <CardContent>
@@ -338,27 +435,42 @@ export default function TripSettingsPage() {
                   Customize the categories for this trip.
                 </Typography>
                 <Divider sx={{ my: 1.5 }} />
-                {catMsg && <Alert severity={catMsg.type} sx={{ mb: 1.5 }}>{catMsg.text}</Alert>}
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
                   {categories.map((cat) => (
-                    <Chip key={cat} label={cat}
-                      onDelete={() => setCategories((prev) => prev.filter((c) => c !== cat))}
-                      sx={{ fontWeight: 600, bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        "& .MuiChip-deleteIcon": { color: theme.palette.error.main } }} />
+                    <Chip
+                      key={cat}
+                      label={cat}
+                      onDelete={() => removeCategory(cat)}
+                      sx={{
+                        fontWeight: 600,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        "& .MuiChip-deleteIcon": { color: theme.palette.error.main },
+                      }}
+                    />
                   ))}
                   {categories.length === 0 && <Typography variant="body2" sx={{ opacity: 0.6 }}>No categories yet.</Typography>}
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <TextField label="New category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { const t = newCategory.trim(); if (!t) return; setCategories((p) => [...p, t]); setNewCategory(""); } }}
-                    size="small" fullWidth />
+                  <TextField
+                    label="New category"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") addCategory(); }}
+                    size="small"
+                    fullWidth
+                  />
                   <Button variant="outlined" startIcon={<AddCircleOutlineIcon />}
-                    onClick={() => { const t = newCategory.trim(); if (!t) return; setCategories((p) => [...p, t]); setNewCategory(""); }}
-                    disabled={!newCategory.trim()}>Add</Button>
+                    onClick={addCategory} disabled={!newCategory.trim() || catSaving}>
+                    Add
+                  </Button>
                 </Stack>
-                <Button variant="contained" onClick={saveCategories} disabled={catSaving} sx={{ mt: 2 }} fullWidth>
-                  {catSaving ? <CircularProgress size={18} color="inherit" /> : "Save Categories"}
-                </Button>
+                {catMsg && <Alert severity={catMsg.type} sx={{ mt: 1.5 }}>{catMsg.text}</Alert>}
+                {catSaving && (
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                    <CircularProgress size={14} />
+                    <Typography variant="caption" sx={{ opacity: 0.65 }}>Saving…</Typography>
+                  </Stack>
+                )}
               </CardContent>
             </Card>
 
@@ -372,9 +484,17 @@ export default function TripSettingsPage() {
                 <Divider sx={{ my: 1.5 }} />
                 {budgetMsg && <Alert severity={budgetMsg.type} sx={{ mb: 1.5 }}>{budgetMsg.text}</Alert>}
                 <Stack spacing={2}>
-                  <TextField label="Total trip budget (optional)" value={totalInput} onChange={(e) => setTotalInput(e.target.value)}
-                    type="number" inputProps={{ min: 0, step: "1" }} size="small" fullWidth placeholder="e.g. 2000"
-                    InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, opacity: 0.6 }}>$</Typography> }} />
+                  <TextField
+                    label="Total trip budget (optional)"
+                    value={totalInput}
+                    onChange={(e) => setTotalInput(e.target.value)}
+                    type="number"
+                    inputProps={{ min: 0, step: "1" }}
+                    size="small"
+                    fullWidth
+                    placeholder="e.g. 2000"
+                    InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, opacity: 0.6 }}>$</Typography> }}
+                  />
                   {catBudgets.length > 0 && (
                     <>
                       <Divider />
@@ -382,9 +502,17 @@ export default function TripSettingsPage() {
                       {catBudgets.map((cb) => (
                         <Stack key={cb.category} direction="row" spacing={1} alignItems="center">
                           <Typography variant="body2" sx={{ minWidth: 120, fontWeight: 600 }}>{cb.category}</Typography>
-                          <TextField value={cb.input}
-                            onChange={(e) => setCatBudgets((prev) => prev.map((x) => x.category === cb.category ? { ...x, input: e.target.value } : x))}
-                            type="number" inputProps={{ min: 0, step: "1" }} size="small" fullWidth placeholder="$" />
+                          <TextField
+                            value={cb.input}
+                            onChange={(e) => setCatBudgets((prev) =>
+                              prev.map((x) => x.category === cb.category ? { ...x, input: e.target.value } : x)
+                            )}
+                            type="number"
+                            inputProps={{ min: 0, step: "1" }}
+                            size="small"
+                            fullWidth
+                            placeholder="$"
+                          />
                           <IconButton size="small" color="error"
                             onClick={() => setCatBudgets((prev) => prev.filter((x) => x.category !== cb.category))}>
                             <DeleteOutlineIcon fontSize="small" />
@@ -395,12 +523,29 @@ export default function TripSettingsPage() {
                   )}
                   {availableBudgetCats.length > 0 && (
                     <Stack direction="row" spacing={1}>
-                      <TextField select value={newBudgetCat} onChange={(e) => setNewBudgetCat(e.target.value)} size="small" sx={{ flex: 1 }} label="Category">
+                      <TextField
+                        select
+                        value={newBudgetCat}
+                        onChange={(e) => setNewBudgetCat(e.target.value)}
+                        size="small"
+                        sx={{ flex: 1 }}
+                        label="Category"
+                      >
                         {availableBudgetCats.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                       </TextField>
-                      <Button variant="outlined" startIcon={<AddCircleOutlineIcon />}
-                        onClick={() => { if (!newBudgetCat) return; setCatBudgets((prev) => [...prev, { category: newBudgetCat, input: "" }]); const r = availableBudgetCats.filter((c) => c !== newBudgetCat); setNewBudgetCat(r[0] ?? ""); }}
-                        disabled={!newBudgetCat}>Add</Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<AddCircleOutlineIcon />}
+                        onClick={() => {
+                          if (!newBudgetCat) return;
+                          setCatBudgets((prev) => [...prev, { category: newBudgetCat, input: "" }]);
+                          const r = availableBudgetCats.filter((c) => c !== newBudgetCat);
+                          setNewBudgetCat(r[0] ?? "");
+                        }}
+                        disabled={!newBudgetCat}
+                      >
+                        Add
+                      </Button>
                     </Stack>
                   )}
                   <Button variant="contained" onClick={saveBudget} disabled={budgetSaving} fullWidth>
@@ -410,13 +555,12 @@ export default function TripSettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Create + Delete trips */}
+            {/* Manage Trips */}
             <Card>
               <CardContent>
                 <Typography variant="h6" fontWeight={800}>Manage Trips</Typography>
                 <Divider sx={{ my: 1.5 }} />
 
-                {/* Create */}
                 <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Create a New Trip</Typography>
                 {createMsg && <Alert severity={createMsg.type} sx={{ mb: 1.5 }}>{createMsg.text}</Alert>}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
@@ -429,21 +573,31 @@ export default function TripSettingsPage() {
 
                 <Divider sx={{ my: 2 }} />
 
-                {/* Delete */}
                 <Typography variant="body2" fontWeight={700} color="error" sx={{ mb: 1 }}>Delete a Trip</Typography>
                 <Typography variant="body2" sx={{ opacity: 0.7, mb: 1.5 }}>
                   Permanently deletes the trip and all its expenses.
                 </Typography>
                 {deleteMsg && <Alert severity={deleteMsg.type} sx={{ mb: 1.5 }}>{deleteMsg.text}</Alert>}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <TextField select label="Trip to delete" value={deleteTripId}
-                    onChange={(e) => setDeleteTripId(e.target.value)} fullWidth disabled={tripDeleting} size="small">
+                  <TextField
+                    select
+                    label="Trip to delete"
+                    value={deleteTripId}
+                    onChange={(e) => setDeleteTripId(e.target.value)}
+                    fullWidth
+                    disabled={tripDeleting}
+                    size="small"
+                  >
                     <MenuItem value=""><em>Select a trip…</em></MenuItem>
                     {trips.map((t) => <MenuItem key={t.tripId} value={t.tripId}>{t.name}</MenuItem>)}
                   </TextField>
-                  <Button color="error" variant="contained" startIcon={<DeleteOutlineIcon />}
+                  <Button
+                    color="error"
+                    variant="contained"
+                    startIcon={<DeleteOutlineIcon />}
                     onClick={() => { setDeleteConfirmText(""); setDeleteDialogOpen(true); }}
-                    disabled={tripDeleting || !deleteTripId}>
+                    disabled={tripDeleting || !deleteTripId}
+                  >
                     Delete
                   </Button>
                 </Stack>
@@ -463,15 +617,25 @@ export default function TripSettingsPage() {
               Permanently deletes <b>{deleteTripLabel || "this trip"}</b> and all its expenses. Cannot be undone.
             </Alert>
             <Typography variant="body2">Type <b>CONFIRM</b> to proceed.</Typography>
-            <TextField autoFocus label="Type CONFIRM" value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)} disabled={tripDeleting} fullWidth />
+            <TextField
+              autoFocus
+              label="Type CONFIRM"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              disabled={tripDeleting}
+              fullWidth
+            />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDeleteDialogOpen(false)} disabled={tripDeleting}>Cancel</Button>
-          <Button color="error" variant="contained"
+          <Button
+            color="error"
+            variant="contained"
             startIcon={tripDeleting ? <CircularProgress size={18} color="inherit" /> : <DeleteOutlineIcon />}
-            onClick={handleConfirmDeleteTrip} disabled={!confirmOk || tripDeleting}>
+            onClick={handleConfirmDeleteTrip}
+            disabled={!confirmOk || tripDeleting}
+          >
             {tripDeleting ? "Deleting…" : "Delete"}
           </Button>
         </DialogActions>

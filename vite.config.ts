@@ -7,9 +7,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://w605cxuv22.execute-api.us-east-1.amazonaws.com/dev',
+        target: 'https://w605cxuv22.execute-api.us-east-1.amazonaws.com/',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: true,
       },
     },
   },

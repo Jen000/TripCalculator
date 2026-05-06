@@ -12,7 +12,7 @@ type SettingsMap = Record<string, TripSettings>;
 type TripSettingsContextValue = {
   getSettings: (tripId: string) => TripSettings | null;
   loadSettings: (tripId: string) => Promise<void>;
-  saveSettings: (tripId: string, patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people">>) => Promise<void>;
+  saveSettings: (tripId: string, patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people" | "splitRules">>) => Promise<void>;
   loadingSettings: boolean;
 };
 
@@ -37,6 +37,7 @@ function makeFallback(tripId: string): TripSettings {
     categoryBudgets: [],
     members: [],
     people: [],
+    splitRules: { defaultSplit: [], categoryOverrides: [] },
   };
 }
 

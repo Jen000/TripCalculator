@@ -12,6 +12,8 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 
 import { useTrip } from "../context/TripContext";
+import { useTripSettings } from "../context/TripSettingsContext";
+import type { SplitRules } from "../api/tripSettings";
 import { useUser } from "../context/UserContext";
 import { getExpenses, type Expense } from "../api/expenses";
 import { getPayments, recordPayment, deletePayment, type Payment } from "../api/tripSettings";
@@ -29,7 +31,7 @@ type Transfer = {
   owedCents: number; paidCents: number; remainingCents: number;
 };
 
-function computeSettleUp(expenses: Expense[], payments: Payment[]) {
+function computeSettleUp(expenses: Expense[], payments: Payment[], splitRules?: SplitRules) {
   if (expenses.length === 0) return { perPerson: [], transfers: [], totalCents: 0 };
 
   const paidMap = new Map<string, number>();
@@ -43,9 +45,36 @@ function computeSettleUp(expenses: Expense[], payments: Payment[]) {
   const n = people.length;
   if (n === 0) return { perPerson: [], transfers: [], totalCents: 0 };
 
-  const shareCents = Math.round(totalCents / n);
+  // Calculate each person's share based on split rules
+  // If no split rules, fall back to equal split
+  const shareMap = new Map<string, number>();
+  people.forEach((name) => shareMap.set(name, 0));
+
+  for (const e of expenses) {
+    const expenseCents = e.costCents ?? 0;
+    // Find applicable split — check category override first, then default
+    const categoryOverride = splitRules?.categoryOverrides?.find(
+      (o) => o.category === e.category
+    );
+    const applicableSplit = categoryOverride?.people ?? splitRules?.defaultSplit;
+
+    if (applicableSplit && applicableSplit.length > 0) {
+      // Use custom percentages
+      for (const split of applicableSplit) {
+        if (shareMap.has(split.name)) {
+          shareMap.set(split.name, (shareMap.get(split.name) ?? 0) + Math.round(expenseCents * split.percentage / 100));
+        }
+      }
+    } else {
+      // Equal split
+      const equalShare = Math.round(expenseCents / n);
+      people.forEach((name) => shareMap.set(name, (shareMap.get(name) ?? 0) + equalShare));
+    }
+  }
+
   const perPerson = people.map((name) => {
     const paid = paidMap.get(name) ?? 0;
+    const shareCents = shareMap.get(name) ?? 0;
     return { name, paidCents: paid, shareCents, netCents: paid - shareCents };
   });
 
@@ -79,6 +108,7 @@ function computeSettleUp(expenses: Expense[], payments: Payment[]) {
 export default function SettleUpPage() {
   const theme = useTheme();
   const { trips, activeTripId, loadingTrips } = useTrip();
+  const { getSettings, loadSettings } = useTripSettings();
   const { profile } = useUser();
 
   const activeTripName = useMemo(
@@ -101,6 +131,10 @@ export default function SettleUpPage() {
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (activeTripId) loadSettings(activeTripId);
+  }, [activeTripId]);
+
+  useEffect(() => {
     if (loadingTrips || !activeTripId) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
@@ -111,8 +145,11 @@ export default function SettleUpPage() {
       .finally(() => setLoading(false));
   }, [activeTripId, loadingTrips]);
 
+  const settings = activeTripId ? getSettings(activeTripId) : null;
+
   const { perPerson, transfers, totalCents } = useMemo(
-    () => computeSettleUp(expenses, payments), [expenses, payments]
+    () => computeSettleUp(expenses, payments, settings?.splitRules),
+    [expenses, payments, settings?.splitRules]
   );
 
   const myName = profile?.firstName ?? null;

@@ -1,9 +1,10 @@
-import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb } from "./db.js";
 import { response } from "./response.js";
 import { getUserSub } from "./auth.js";
 
 const TABLE_NAME = process.env.EXPENSES_TABLE;
+const EXPENSES_GSI = process.env.EXPENSES_GSI;
 
 export const handler = async (event) => {
   try {
@@ -19,33 +20,38 @@ export const handler = async (event) => {
     if (!date || !description || !whoPaid || !category || cost == null) {
       return response(400, { message: "Missing required fields" });
     }
-
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return response(400, { message: "Invalid date format" });
     }
-
     const costNumber = Number(cost);
     if (!Number.isFinite(costNumber) || costNumber < 0) {
       return response(400, { message: "Invalid cost" });
+    }
+
+    // Find owner's userSub via GSI if available
+    let ownerSub = userSub;
+    if (EXPENSES_GSI) {
+      const found = await ddb.send(new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: EXPENSES_GSI,
+        KeyConditionExpression: "expenseId = :expenseId",
+        ExpressionAttributeValues: { ":expenseId": expenseId },
+        Limit: 1,
+      }));
+      if (found.Items && found.Items.length > 0) {
+        ownerSub = found.Items[0].userSub;
+      }
     }
 
     const updatedAt = new Date().toISOString();
 
     await ddb.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      // userSub is PK, expenseId is SK — matches your existing table schema
-      Key: { userSub, expenseId },
-      ConditionExpression: "userSub = :sub",
-      UpdateExpression: `SET
-        #dt = :date,
-        description = :description,
-        whoPaid = :whoPaid,
-        category = :category,
-        costCents = :costCents,
-        updatedAt = :updatedAt`,
+      Key: { userSub: ownerSub, expenseId },
+      UpdateExpression: `SET #dt = :date, description = :description, whoPaid = :whoPaid,
+        category = :category, costCents = :costCents, updatedAt = :updatedAt`,
       ExpressionAttributeNames: { "#dt": "date" },
       ExpressionAttributeValues: {
-        ":sub": userSub,
         ":date": date,
         ":description": description.trim(),
         ":whoPaid": whoPaid.trim(),
@@ -57,7 +63,11 @@ export const handler = async (event) => {
 
     return response(200, {
       message: "Expense updated",
-      expense: { expenseId, date, description: description.trim(), whoPaid: whoPaid.trim(), category: category.trim(), costCents: Math.round(costNumber * 100), updatedAt },
+      expense: {
+        expenseId, date, description: description.trim(),
+        whoPaid: whoPaid.trim(), category: category.trim(),
+        costCents: Math.round(costNumber * 100), updatedAt,
+      },
     });
   } catch (err) {
     if (err.name === "ConditionalCheckFailedException") {

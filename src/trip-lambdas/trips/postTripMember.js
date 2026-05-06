@@ -41,13 +41,8 @@ export const handler = async (event) => {
     const invitedSub = cognitoUser.Attributes?.find((a) => a.Name === "sub")?.Value;
     const invitedEmail = cognitoUser.Attributes?.find((a) => a.Name === "email")?.Value ?? email;
 
-    if (!invitedSub) {
-      return response(500, { message: "Could not resolve user sub" });
-    }
-
-    if (invitedSub === userSub) {
-      return response(400, { message: "You can't invite yourself." });
-    }
+    if (!invitedSub) return response(500, { message: "Could not resolve user sub" });
+    if (invitedSub === userSub) return response(400, { message: "You can't invite yourself." });
 
     // 2. Get current settings to check for duplicate
     const existing = await ddb.send(new GetCommand({
@@ -60,7 +55,7 @@ export const handler = async (event) => {
       return response(409, { message: "That user is already a member of this trip." });
     }
 
-    // 3. Append new member
+    // 3. Append new member — do NOT include tripId in update expression
     const newMember = {
       userId: invitedSub,
       email: invitedEmail,

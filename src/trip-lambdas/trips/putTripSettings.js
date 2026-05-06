@@ -14,13 +14,12 @@ export const handler = async (event) => {
     if (!tripId) return response(400, { message: "Missing tripId" });
 
     const body = JSON.parse(event.body ?? "{}");
-    const { categories, totalBudgetCents, categoryBudgets } = body;
+    const { categories, totalBudgetCents, categoryBudgets, people, splitRules } = body;
 
     // Build update expression dynamically — only update what was sent
-    const updates = [];
-    const names = {};
-    const values = { ":updatedAt": new Date().toISOString(), ":tripId": tripId };
-    updates.push("updatedAt = :updatedAt", "tripId = :tripId");
+    // NOTE: never include tripId in the update expression — it's the partition key
+    const updates = ["updatedAt = :updatedAt"];
+    const values = { ":updatedAt": new Date().toISOString() };
 
     if (categories !== undefined) {
       if (!Array.isArray(categories)) return response(400, { message: "categories must be an array" });
@@ -42,12 +41,22 @@ export const handler = async (event) => {
       values[":categoryBudgets"] = categoryBudgets;
     }
 
+    if (people !== undefined) {
+      if (!Array.isArray(people)) return response(400, { message: "people must be an array" });
+      updates.push("people = :people");
+      values[":people"] = people.map((p) => String(p).trim()).filter(Boolean);
+    }
+
+    if (splitRules !== undefined) {
+      updates.push("splitRules = :splitRules");
+      values[":splitRules"] = splitRules;
+    }
+
     await ddb.send(new UpdateCommand({
       TableName: TABLE_NAME,
       Key: { tripId },
       UpdateExpression: `SET ${updates.join(", ")}`,
       ExpressionAttributeValues: values,
-      ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
     }));
 
     return response(200, { message: "Settings saved", tripId });

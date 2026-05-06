@@ -33,6 +33,25 @@ async function authedFetch(path: string, init?: RequestInit) {
 
 // ── Trip Settings ─────────────────────────────────────────────────────────────
 
+export type PersonSplit = {
+  name: string;
+  percentage: number; // 0-100
+};
+
+export type SplitRule = {
+  people: PersonSplit[];
+};
+
+export type CategorySplitOverride = {
+  category: string;
+  people: PersonSplit[];
+};
+
+export type SplitRules = {
+  defaultSplit: PersonSplit[];
+  categoryOverrides: CategorySplitOverride[];
+};
+
 export type TripSettings = {
   tripId: string;
   categories: string[];
@@ -40,6 +59,7 @@ export type TripSettings = {
   categoryBudgets: { category: string; limitCents: number }[];
   members: { userId: string; email: string; role: "owner" | "member" }[];
   people: string[];
+  splitRules: SplitRules;
 };
 
 export async function getTripSettings(tripId: string): Promise<TripSettings> {
@@ -49,7 +69,7 @@ export async function getTripSettings(tripId: string): Promise<TripSettings> {
 
 export async function updateTripSettings(
   tripId: string,
-  settings: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people">>
+  settings: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people" | "splitRules">>
 ): Promise<TripSettings> {
   const res = await authedFetch(`/trips/${encodeURIComponent(tripId)}/settings`, {
     method: "PUT",

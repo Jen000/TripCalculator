@@ -9,7 +9,7 @@ import { postExpense } from "../api/expenses";
 
 export default function ExpenseForm() {
   const { activeTripId, trips, loadingTrips } = useTrip();
-  const { getSettings, loadSettings } = useTripSettings();
+  const { getSettings, loadSettings, loadingSettings } = useTripSettings();
 
   const activeTripName = useMemo(
     () => trips.find((t) => t.tripId === activeTripId)?.name ?? "Trip",
@@ -27,19 +27,21 @@ export default function ExpenseForm() {
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
   const [whoPaid, setWhoPaid] = useState("");
-  const [category, setCategory] = useState(categories[0]);
+  const [category, setCategory] = useState(categories[0] ?? DEFAULT_CATEGORIES[0]);
   const [cost, setCost] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Keep category in sync if categories change
   useEffect(() => {
-    if (!categories.includes(category)) setCategory(categories[0]);
+    if (categories.length > 0 && !categories.includes(category)) {
+      setCategory(categories[0]);
+    }
   }, [categories.join(",")]);
 
-  // Reset whoPaid if people list changes and current value is no longer valid
   useEffect(() => {
-    if (people.length > 0 && !people.includes(whoPaid)) setWhoPaid("");
+    if (people.length > 0 && whoPaid && !people.includes(whoPaid)) {
+      setWhoPaid("");
+    }
   }, [people.join(",")]);
 
   const canSubmit = !!activeTripId && date && description.trim() && whoPaid && category && cost;
@@ -57,7 +59,10 @@ export default function ExpenseForm() {
     }
     setSaving(true);
     try {
-      await postExpense({ tripId: activeTripId, date, description: description.trim(), whoPaid, category, cost: costNumber });
+      await postExpense({
+        tripId: activeTripId, date, description: description.trim(),
+        whoPaid, category, cost: costNumber,
+      });
       setDate(""); setDescription(""); setWhoPaid(""); setCategory(categories[0]); setCost("");
       setMsg({ type: "success", text: "Expense added!" });
     } catch (e: any) {
@@ -86,15 +91,19 @@ export default function ExpenseForm() {
           <Stack spacing={2}>
             {msg && <Alert severity={msg.type}>{msg.text}</Alert>}
 
-            <TextField label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            <TextField label="Date" type="date" value={date}
+              onChange={(e) => setDate(e.target.value)}
               InputLabelProps={{ shrink: true }} fullWidth />
 
             <TextField label="Purchase description" value={description}
               onChange={(e) => setDescription(e.target.value)} fullWidth />
 
-            {/* Who Paid — dropdown if people list exists, free text fallback */}
-            {people.length > 0 ? (
-              <TextField select label="Who paid?" value={whoPaid} onChange={(e) => setWhoPaid(e.target.value)} fullWidth>
+            {loadingSettings ? (
+              <TextField label="Who paid?" value="" disabled fullWidth
+                InputProps={{ endAdornment: <CircularProgress size={18} /> }} />
+            ) : people.length > 0 ? (
+              <TextField select label="Who paid?" value={whoPaid}
+                onChange={(e) => setWhoPaid(e.target.value)} fullWidth>
                 <MenuItem value=""><em>Select a person…</em></MenuItem>
                 {people.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
               </TextField>
@@ -108,11 +117,13 @@ export default function ExpenseForm() {
               />
             )}
 
-            <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)} fullWidth>
+            <TextField select label="Category" value={category}
+              onChange={(e) => setCategory(e.target.value)} fullWidth>
               {categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
             </TextField>
 
-            <TextField label="Cost" type="number" value={cost} onChange={(e) => setCost(e.target.value)}
+            <TextField label="Cost" type="number" value={cost}
+              onChange={(e) => setCost(e.target.value)}
               inputProps={{ min: 0, step: "0.01" }} fullWidth />
 
             <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit || saving}>
