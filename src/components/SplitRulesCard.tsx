@@ -16,36 +16,36 @@ interface Props {
 }
 
 /**
- * Smart slider adjustment:
- * When person at `changedIndex` moves their slider to `newValue`,
- * distribute the remaining percentage equally among the others,
- * with the last person absorbing any rounding remainder.
- * People before `changedIndex` keep their values (priority order).
+ * Smart slider adjustment with priority ordering:
+ * - People BEFORE changedIndex keep their values (higher priority, locked).
+ * - The changed person is clamped to the space remaining after locked people.
+ * - People AFTER changedIndex share whatever is left equally (lower priority).
  */
 function adjustSplits(splits: PersonSplit[], changedIndex: number, newValue: number): PersonSplit[] {
   const result = [...splits];
-  result[changedIndex] = { ...result[changedIndex], percentage: newValue };
 
-  // Sum of all other people's current percentages
-  const remaining = 100 - newValue;
-  const others = result.filter((_, i) => i !== changedIndex);
+  // Sum of higher-priority people (before changedIndex) — they don't move
+  const lockedBefore = result.slice(0, changedIndex).reduce((s, p) => s + p.percentage, 0);
 
-  if (others.length === 0) return result;
+  // Clamp so the changed person can't exceed what's available after locked people
+  const clamped = Math.min(Math.max(0, newValue), 100 - lockedBefore);
+  result[changedIndex] = { ...result[changedIndex], percentage: clamped };
 
-  // Distribute remaining equally
-  const equalShare = Math.floor(remaining / others.length);
-  const remainder = remaining - equalShare * others.length;
+  // Distribute remaining space equally among lower-priority people (after changedIndex)
+  const remaining = 100 - lockedBefore - clamped;
+  const lowerCount = result.length - changedIndex - 1;
 
-  let othersIdx = 0;
-  for (let i = 0; i < result.length; i++) {
-    if (i === changedIndex) continue;
-    // Last other person gets the remainder
-    const isLast = othersIdx === others.length - 1;
+  if (lowerCount === 0) return result;
+
+  const equalShare = Math.floor(remaining / lowerCount);
+  const rem = remaining - equalShare * lowerCount;
+
+  for (let i = changedIndex + 1; i < result.length; i++) {
+    const isLast = i === result.length - 1;
     result[i] = {
       ...result[i],
-      percentage: Math.max(0, equalShare + (isLast ? remainder : 0)),
+      percentage: equalShare + (isLast ? rem : 0),
     };
-    othersIdx++;
   }
 
   return result;
@@ -74,10 +74,7 @@ function SplitEditor({
   const isValid = total === 100;
 
   const handleChange = (index: number, value: number) => {
-    // Clamp so this person can't exceed what's left for them
-    const maxValue = 100 - splits.filter((_, i) => i !== index).reduce((s) => s + 0, 0);
-    const clamped = Math.min(Math.max(0, value), 100);
-    onChange(adjustSplits(splits, index, clamped));
+    onChange(adjustSplits(splits, index, value as number));
   };
 
   return (

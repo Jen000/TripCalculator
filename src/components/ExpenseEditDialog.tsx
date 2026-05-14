@@ -12,34 +12,22 @@ import {
   TextField,
 } from "@mui/material";
 import { updateExpense, type Expense } from "../api/expenses";
-
-const CATEGORIES = [
-  "Lodging",
-  "Gas",
-  "Food",
-  "Coffee",
-  "Groceries",
-  "Activities",
-  "Park Fees",
-  "Transit / Parking",
-  "Shopping",
-  "Flights",
-  "Rental Car",
-  "Misc",
-];
+import { DEFAULT_CATEGORIES } from "../context/TripSettingsContext";
 
 interface Props {
   expense: Expense | null;
   open: boolean;
   onClose: () => void;
   onSaved: (updated: Expense) => void;
+  people?: string[];
+  categories?: string[];
 }
 
-export default function ExpenseEditDialog({ expense, open, onClose, onSaved }: Props) {
+export default function ExpenseEditDialog({ expense, open, onClose, onSaved, people = [], categories = DEFAULT_CATEGORIES }: Props) {
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
   const [whoPaid, setWhoPaid] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState(categories[0] ?? "");
   const [cost, setCost] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +83,7 @@ export default function ExpenseEditDialog({ expense, open, onClose, onSaved }: P
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
             fullWidth
             disabled={saving}
           />
@@ -106,13 +94,28 @@ export default function ExpenseEditDialog({ expense, open, onClose, onSaved }: P
             fullWidth
             disabled={saving}
           />
-          <TextField
-            label="Who Paid"
-            value={whoPaid}
-            onChange={(e) => setWhoPaid(e.target.value)}
-            fullWidth
-            disabled={saving}
-          />
+          {people.length > 0 ? (
+            <TextField
+              select
+              label="Who Paid"
+              value={whoPaid}
+              onChange={(e) => setWhoPaid(e.target.value)}
+              fullWidth
+              disabled={saving}
+            >
+              {people.map((p) => (
+                <MenuItem key={p} value={p}>{p}</MenuItem>
+              ))}
+            </TextField>
+          ) : (
+            <TextField
+              label="Who Paid"
+              value={whoPaid}
+              onChange={(e) => setWhoPaid(e.target.value)}
+              fullWidth
+              disabled={saving}
+            />
+          )}
           <TextField
             select
             label="Category"
@@ -121,10 +124,8 @@ export default function ExpenseEditDialog({ expense, open, onClose, onSaved }: P
             fullWidth
             disabled={saving}
           >
-            {CATEGORIES.map((c) => (
-              <MenuItem key={c} value={c}>
-                {c}
-              </MenuItem>
+            {categories.map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
             ))}
           </TextField>
           <TextField
@@ -132,7 +133,7 @@ export default function ExpenseEditDialog({ expense, open, onClose, onSaved }: P
             type="number"
             value={cost}
             onChange={(e) => setCost(e.target.value)}
-            inputProps={{ min: 0, step: "0.01" }}
+            slotProps={{ htmlInput: { min: 0, step: "0.01" } }}
             fullWidth
             disabled={saving}
           />

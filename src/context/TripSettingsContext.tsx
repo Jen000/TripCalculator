@@ -75,7 +75,7 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
   const saveSettings = useCallback(
     async (
       tripId: string,
-      patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people">>
+      patch: Partial<Pick<TripSettings, "categories" | "totalBudgetCents" | "categoryBudgets" | "people" | "splitRules">>
     ) => {
       setSettingsMap((prev) => {
         const existing = prev[tripId] ?? makeFallback(tripId);
@@ -85,8 +85,11 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
       });
       try {
         const updated = await updateTripSettings(tripId, patch);
+        // Merge rather than replace so fields not included in the patch (e.g. members, people)
+        // are never lost if the backend response omits them.
         setSettingsMap((prev) => {
-          const next = { ...prev, [tripId]: updated };
+          const existing = prev[tripId] ?? makeFallback(tripId);
+          const next = { ...prev, [tripId]: { ...existing, ...updated } };
           saveCache(next);
           return next;
         });

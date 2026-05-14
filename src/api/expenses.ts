@@ -79,12 +79,13 @@ export async function updateExpense(
   return (await res.json()) as { message: string; expense: Expense };
 }
 
-export async function deleteExpense(expenseId: string) {
+export async function deleteExpense(expenseId: string, tripId?: string) {
   const session = await fetchAuthSession();
   const token = session.tokens?.idToken?.toString();
 
+  const qs = tripId ? `?tripId=${encodeURIComponent(tripId)}` : "";
   const res = await fetch(
-    `${requireApiBaseUrl()}/expenses/${encodeURIComponent(expenseId)}`,
+    `${requireApiBaseUrl()}/expenses/${encodeURIComponent(expenseId)}${qs}`,
     {
       method: "DELETE",
       headers: {

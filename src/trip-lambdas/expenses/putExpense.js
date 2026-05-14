@@ -1,10 +1,9 @@
-import { QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb } from "./db.js";
 import { response } from "./response.js";
 import { getUserSub } from "./auth.js";
 
 const TABLE_NAME = process.env.EXPENSES_TABLE;
-const EXPENSES_GSI = process.env.EXPENSES_GSI;
 
 export const handler = async (event) => {
   try {
@@ -28,26 +27,16 @@ export const handler = async (event) => {
       return response(400, { message: "Invalid cost" });
     }
 
-    // Find owner's userSub via GSI if available
-    let ownerSub = userSub;
-    if (EXPENSES_GSI) {
-      const found = await ddb.send(new QueryCommand({
-        TableName: TABLE_NAME,
-        IndexName: EXPENSES_GSI,
-        KeyConditionExpression: "expenseId = :expenseId",
-        ExpressionAttributeValues: { ":expenseId": expenseId },
-        Limit: 1,
-      }));
-      if (found.Items && found.Items.length > 0) {
-        ownerSub = found.Items[0].userSub;
-      }
-    }
-
     const updatedAt = new Date().toISOString();
 
-    await ddb.send(new UpdateCommand({
+    // Expenses are keyed by (userSub, expenseId). Use the caller's userSub directly.
+    // ConditionExpression ensures we return 404 instead of silently creating a ghost record.
+    // ReturnValues: "ALL_NEW" gives back all attributes (including tripId, createdAt) so the
+    // frontend can keep its state fully consistent after an edit.
+    const result = await ddb.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { userSub: ownerSub, expenseId },
+      Key: { userSub, expenseId },
+      ConditionExpression: "attribute_exists(expenseId)",
       UpdateExpression: `SET #dt = :date, description = :description, whoPaid = :whoPaid,
         category = :category, costCents = :costCents, updatedAt = :updatedAt`,
       ExpressionAttributeNames: { "#dt": "date" },
@@ -59,15 +48,12 @@ export const handler = async (event) => {
         ":costCents": Math.round(costNumber * 100),
         ":updatedAt": updatedAt,
       },
+      ReturnValues: "ALL_NEW",
     }));
 
     return response(200, {
       message: "Expense updated",
-      expense: {
-        expenseId, date, description: description.trim(),
-        whoPaid: whoPaid.trim(), category: category.trim(),
-        costCents: Math.round(costNumber * 100), updatedAt,
-      },
+      expense: result.Attributes,
     });
   } catch (err) {
     if (err.name === "ConditionalCheckFailedException") {
