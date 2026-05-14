@@ -22,7 +22,12 @@ export default function ExpenseForm() {
 
   const settings = activeTripId ? getSettings(activeTripId) : null;
   const categories = settings?.categories?.length ? settings.categories : DEFAULT_CATEGORIES;
-  const people = settings?.people ?? [];
+  const people = useMemo(() => {
+    const explicit = settings?.people ?? [];
+    const memberNames = (settings?.members ?? []).map((m) => m.email.split("@")[0]);
+    const lower = new Set(explicit.map((p) => p.toLowerCase()));
+    return [...explicit, ...memberNames.filter((n) => !lower.has(n.toLowerCase()))];
+  }, [settings?.people, settings?.members]);
 
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
@@ -93,14 +98,14 @@ export default function ExpenseForm() {
 
             <TextField label="Date" type="date" value={date}
               onChange={(e) => setDate(e.target.value)}
-              InputLabelProps={{ shrink: true }} fullWidth />
+              slotProps={{ inputLabel: { shrink: true } }} fullWidth />
 
             <TextField label="Purchase description" value={description}
               onChange={(e) => setDescription(e.target.value)} fullWidth />
 
             {loadingSettings ? (
               <TextField label="Who paid?" value="" disabled fullWidth
-                InputProps={{ endAdornment: <CircularProgress size={18} /> }} />
+                slotProps={{ input: { endAdornment: <CircularProgress size={18} /> } }} />
             ) : people.length > 0 ? (
               <TextField select label="Who paid?" value={whoPaid}
                 onChange={(e) => setWhoPaid(e.target.value)} fullWidth>
@@ -124,7 +129,7 @@ export default function ExpenseForm() {
 
             <TextField label="Cost" type="number" value={cost}
               onChange={(e) => setCost(e.target.value)}
-              inputProps={{ min: 0, step: "0.01" }} fullWidth />
+              slotProps={{ htmlInput: { min: 0, step: "0.01" } }} fullWidth />
 
             <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit || saving}>
               {saving ? <CircularProgress size={18} color="inherit" /> : "Add Expense"}

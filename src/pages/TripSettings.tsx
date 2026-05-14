@@ -203,10 +203,16 @@ export default function TripSettingsPage() {
     if (!activeTripId || !inviteEmail.trim()) return;
     setInviteLoading(true); setInviteMsg(null);
     try {
-      await inviteTripMember(activeTripId, inviteEmail.trim());
+      const email = inviteEmail.trim();
+      await inviteTripMember(activeTripId, email);
       setInviteEmail("");
       setInviteMsg({ type: "success", text: "Invite sent!" });
       await loadSettings(activeTripId);
+      // Auto-add invited member's name to the people list so they appear in "Who Paid"
+      const displayName = email.split("@")[0];
+      if (!people.map((p) => p.toLowerCase()).includes(displayName.toLowerCase())) {
+        await savePeopleList([...people, displayName]);
+      }
     } catch (e: any) {
       setInviteMsg({ type: "error", text: e?.message ?? "Failed to send invite." });
     } finally { setInviteLoading(false); }

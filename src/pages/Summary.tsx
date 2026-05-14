@@ -152,7 +152,7 @@ export default function Summary() {
     if (!deleteTarget) return;
     setDeleting(true); setDeleteError(null);
     try {
-      await deleteExpense(deleteTarget.expenseId);
+      await deleteExpense(deleteTarget.expenseId, deleteTarget.tripId);
       setExpenses((prev) => prev.filter((e) => e.expenseId !== deleteTarget.expenseId));
       setDeleteTarget(null);
     } catch (e: any) {
@@ -387,7 +387,14 @@ export default function Summary() {
         )}
       </Stack>
 
-      <ExpenseEditDialog expense={editExpense} open={editOpen} onClose={() => setEditOpen(false)} onSaved={handleSaved} />
+      <ExpenseEditDialog
+        expense={editExpense}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={handleSaved}
+        people={settings?.people ?? []}
+        categories={settings?.categories ?? []}
+      />
 
       <Dialog open={!!deleteTarget} onClose={deleting ? undefined : () => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 800 }}>Delete expense?</DialogTitle>

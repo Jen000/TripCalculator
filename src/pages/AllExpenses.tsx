@@ -34,6 +34,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
 import { useTheme, alpha } from "@mui/material/styles";
 import { useTrip } from "../context/TripContext";
+import { useTripSettings } from "../context/TripSettingsContext";
 import { getExpenses, deleteExpense, type Expense } from "../api/expenses";
 import ExpenseEditDialog from "../components/ExpenseEditDialog";
 
@@ -59,8 +60,10 @@ function formatMoneyFromCents(cents: number) {
 
 export default function AllExpenses() {
   const { trips, activeTripId, loadingTrips } = useTrip();
+  const { getSettings, loadSettings } = useTripSettings();
   const navigate = useNavigate();
   const theme = useTheme();
+  const settings = activeTripId ? getSettings(activeTripId) : null;
 
   const activeTripName = useMemo(
     () => trips.find((t) => t.tripId === activeTripId)?.name ?? "Trip",
@@ -91,6 +94,7 @@ export default function AllExpenses() {
       return;
     }
     setLoading(true);
+    loadSettings(activeTripId);
     getExpenses(activeTripId)
       .then((d) => setExpenses(d.expenses ?? []))
       .catch((e: any) => setError(e?.message ?? "Failed to load expenses"))
@@ -128,7 +132,7 @@ export default function AllExpenses() {
     setDeleting(true);
     setDeleteError(null);
     try {
-      await deleteExpense(deleteTarget.expenseId);
+      await deleteExpense(deleteTarget.expenseId, deleteTarget.tripId);
       setExpenses((prev) => prev.filter((e) => e.expenseId !== deleteTarget.expenseId));
       setDeleteTarget(null);
     } catch (e: any) {
@@ -172,12 +176,14 @@ export default function AllExpenses() {
               onChange={(e) => setSearch(e.target.value)}
               size="small"
               fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
               }}
             />
             <TextField
@@ -300,6 +306,8 @@ export default function AllExpenses() {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         onSaved={handleSaved}
+        people={settings?.people ?? []}
+        categories={settings?.categories ?? []}
       />
 
       {/* Delete confirmation dialog */}
