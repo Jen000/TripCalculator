@@ -31,10 +31,14 @@ type Transfer = {
   owedCents: number; paidCents: number; remainingCents: number;
 };
 
-function computeSettleUp(expenses: Expense[], payments: Payment[], splitRules?: SplitRules) {
+function computeSettleUp(expenses: Expense[], payments: Payment[], splitRules?: SplitRules, allPeople?: string[]) {
   if (expenses.length === 0) return { perPerson: [], transfers: [], totalCents: 0 };
 
+  // Seed every known member at $0 so people who haven't paid still appear.
   const paidMap = new Map<string, number>();
+  for (const name of allPeople ?? []) {
+    paidMap.set(name, 0);
+  }
   for (const e of expenses) {
     const key = (e.whoPaid || "Unknown").trim();
     paidMap.set(key, (paidMap.get(key) ?? 0) + (e.costCents ?? 0));
@@ -45,28 +49,24 @@ function computeSettleUp(expenses: Expense[], payments: Payment[], splitRules?: 
   const n = people.length;
   if (n === 0) return { perPerson: [], transfers: [], totalCents: 0 };
 
-  // Calculate each person's share based on split rules
-  // If no split rules, fall back to equal split
   const shareMap = new Map<string, number>();
   people.forEach((name) => shareMap.set(name, 0));
 
   for (const e of expenses) {
     const expenseCents = e.costCents ?? 0;
-    // Find applicable split — check category override first, then default
     const categoryOverride = splitRules?.categoryOverrides?.find(
       (o) => o.category === e.category
     );
     const applicableSplit = categoryOverride?.people ?? splitRules?.defaultSplit;
 
     if (applicableSplit && applicableSplit.length > 0) {
-      // Use custom percentages
       for (const split of applicableSplit) {
         if (shareMap.has(split.name)) {
           shareMap.set(split.name, (shareMap.get(split.name) ?? 0) + Math.round(expenseCents * split.percentage / 100));
         }
       }
     } else {
-      // Equal split
+      // Equal split across all members, including those who paid nothing
       const equalShare = Math.round(expenseCents / n);
       people.forEach((name) => shareMap.set(name, (shareMap.get(name) ?? 0) + equalShare));
     }
@@ -147,9 +147,16 @@ export default function SettleUpPage() {
 
   const settings = activeTripId ? getSettings(activeTripId) : null;
 
+  const allPeople = useMemo(() => {
+    const explicit = settings?.people ?? [];
+    const memberNames = (settings?.members ?? []).map((m) => m.email.split("@")[0]);
+    const lower = new Set(explicit.map((p) => p.toLowerCase()));
+    return [...explicit, ...memberNames.filter((n) => !lower.has(n.toLowerCase()))];
+  }, [settings?.people, settings?.members]);
+
   const { perPerson, transfers, totalCents } = useMemo(
-    () => computeSettleUp(expenses, payments, settings?.splitRules),
-    [expenses, payments, settings?.splitRules]
+    () => computeSettleUp(expenses, payments, settings?.splitRules, allPeople),
+    [expenses, payments, settings?.splitRules, allPeople]
   );
 
   const myName = profile?.firstName ?? null;
@@ -472,8 +479,11 @@ export default function SettleUpPage() {
             {dialogError && <Alert severity="error">{dialogError}</Alert>}
             <Typography variant="body2"><b>{dialogFrom}</b> pays <b>{dialogTo}</b></Typography>
             <TextField label="Amount" value={dialogAmount} onChange={(e) => setDialogAmount(e.target.value)}
-              type="number" inputProps={{ min: 0, step: "0.01" }} fullWidth disabled={dialogSaving}
-              InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, opacity: 0.6 }}>$</Typography> }} />
+              type="number" fullWidth disabled={dialogSaving}
+              slotProps={{
+                htmlInput: { min: 0, step: "0.01" },
+                input: { startAdornment: <Typography sx={{ mr: 0.5, opacity: 0.6 }}>$</Typography> },
+              }} />
             <TextField label="Note (optional)" value={dialogNote} onChange={(e) => setDialogNote(e.target.value)}
               fullWidth disabled={dialogSaving} placeholder="e.g. Venmo, cash, etc." />
           </Stack>

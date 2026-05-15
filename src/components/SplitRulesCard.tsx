@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import {
+  Accordion, AccordionDetails, AccordionSummary,
   Alert, Box, Button, Card, CardContent, CircularProgress,
-  Chip, Divider, IconButton, MenuItem, Slider, Stack, TextField, Tooltip, Typography,
+  Chip, Divider, IconButton, Slider, Stack, Tooltip, Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import type { SplitRules, PersonSplit, CategorySplitOverride } from "../api/tripSettings";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import type { SplitRules, PersonSplit } from "../api/tripSettings";
 
 interface Props {
   people: string[];
@@ -23,31 +25,17 @@ interface Props {
  */
 function adjustSplits(splits: PersonSplit[], changedIndex: number, newValue: number): PersonSplit[] {
   const result = [...splits];
-
-  // Sum of higher-priority people (before changedIndex) — they don't move
   const lockedBefore = result.slice(0, changedIndex).reduce((s, p) => s + p.percentage, 0);
-
-  // Clamp so the changed person can't exceed what's available after locked people
   const clamped = Math.min(Math.max(0, newValue), 100 - lockedBefore);
   result[changedIndex] = { ...result[changedIndex], percentage: clamped };
-
-  // Distribute remaining space equally among lower-priority people (after changedIndex)
   const remaining = 100 - lockedBefore - clamped;
   const lowerCount = result.length - changedIndex - 1;
-
   if (lowerCount === 0) return result;
-
   const equalShare = Math.floor(remaining / lowerCount);
   const rem = remaining - equalShare * lowerCount;
-
   for (let i = changedIndex + 1; i < result.length; i++) {
-    const isLast = i === result.length - 1;
-    result[i] = {
-      ...result[i],
-      percentage: equalShare + (isLast ? rem : 0),
-    };
+    result[i] = { ...result[i], percentage: equalShare + (i === result.length - 1 ? rem : 0) };
   }
-
   return result;
 }
 
@@ -62,6 +50,15 @@ function makeSplits(people: string[], existing: PersonSplit[]): PersonSplit[] {
   });
 }
 
+function isCustom(splits: PersonSplit[], template: PersonSplit[]): boolean {
+  if (splits.length !== template.length) return true;
+  for (const s of splits) {
+    const t = template.find((t) => t.name === s.name);
+    if (!t || t.percentage !== s.percentage) return true;
+  }
+  return false;
+}
+
 function SplitEditor({
   splits,
   onChange,
@@ -72,10 +69,6 @@ function SplitEditor({
   const theme = useTheme();
   const total = splits.reduce((s, p) => s + p.percentage, 0);
   const isValid = total === 100;
-
-  const handleChange = (index: number, value: number) => {
-    onChange(adjustSplits(splits, index, value as number));
-  };
 
   return (
     <Stack spacing={1.5}>
@@ -92,23 +85,22 @@ function SplitEditor({
           </Stack>
           <Slider
             value={s.percentage}
-            onChange={(_, v) => handleChange(i, v as number)}
-            min={0}
-            max={100}
-            step={1}
-            sx={{
-              color: theme.palette.primary.main,
-              "& .MuiSlider-thumb": { width: 16, height: 16 },
-            }}
+            onChange={(_, v) => onChange(adjustSplits(splits, i, v as number))}
+            min={0} max={100} step={1}
+            sx={{ color: theme.palette.primary.main, "& .MuiSlider-thumb": { width: 16, height: 16 } }}
           />
         </Box>
       ))}
-      <Stack direction="row" justifyContent="space-between" alignItems="center"
-        sx={{ pt: 0.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
+      <Stack
+        direction="row" justifyContent="space-between" alignItems="center"
+        sx={{ pt: 0.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}
+      >
         <Typography variant="caption" sx={{ opacity: 0.65 }}>Total</Typography>
-        <Typography variant="caption" fontWeight={800}
-          color={isValid ? "success.main" : "error.main"}>
-          {total}% {isValid ? "✓" : `— needs ${100 - total > 0 ? `+${100 - total}` : 100 - total}% adjustment`}
+        <Typography variant="caption" fontWeight={800} color={isValid ? "success.main" : "error.main"}>
+          {total}%{" "}
+          {isValid
+            ? "✓"
+            : `— needs ${100 - total > 0 ? `+${100 - total}` : 100 - total}% adjustment`}
         </Typography>
       </Stack>
     </Stack>
@@ -118,53 +110,70 @@ function SplitEditor({
 export default function SplitRulesCard({ people, categories, splitRules, onSave }: Props) {
   const theme = useTheme();
 
-  const [defaultSplit, setDefaultSplit] = useState<PersonSplit[]>(() =>
+  const [template, setTemplate] = useState<PersonSplit[]>(() =>
     makeSplits(people, splitRules.defaultSplit ?? [])
   );
-  const [categoryOverrides, setCategoryOverrides] = useState<CategorySplitOverride[]>(
-    splitRules.categoryOverrides ?? []
-  );
-  const [newOverrideCat, setNewOverrideCat] = useState("");
+
+  const [categorySplits, setCategorySplits] = useState<Record<string, PersonSplit[]>>(() => {
+    const result: Record<string, PersonSplit[]> = {};
+    for (const cat of categories) {
+      const override = (splitRules.categoryOverrides ?? []).find((o) => o.category === cat);
+      result[cat] = makeSplits(people, override?.people ?? splitRules.defaultSplit ?? []);
+    }
+    return result;
+  });
+
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Sync when people or splitRules change from outside
+  // Sync when external data changes (e.g. save confirmed, people added)
   useEffect(() => {
     if (people.length === 0) return;
-    setDefaultSplit(makeSplits(people, splitRules.defaultSplit ?? []));
-    setCategoryOverrides(splitRules.categoryOverrides ?? []);
+    const newTemplate = makeSplits(people, splitRules.defaultSplit ?? []);
+    setTemplate(newTemplate);
+    setCategorySplits(() => {
+      const result: Record<string, PersonSplit[]> = {};
+      for (const cat of categories) {
+        const override = (splitRules.categoryOverrides ?? []).find((o) => o.category === cat);
+        result[cat] = makeSplits(people, override?.people ?? splitRules.defaultSplit ?? []);
+      }
+      return result;
+    });
   }, [people.join(","), splitRules.defaultSplit?.length, splitRules.categoryOverrides?.length]);
 
-  const addCategoryOverride = () => {
-    if (!newOverrideCat || categoryOverrides.find((o) => o.category === newOverrideCat)) return;
-    const newOverride: CategorySplitOverride = {
-      category: newOverrideCat,
-      people: makeSplits(people, []),
-    };
-    setCategoryOverrides((prev) => [...prev, newOverride]);
-    setNewOverrideCat("");
-  };
+  // For categories added after the last sync, fall back to the current template
+  const getSplits = (cat: string): PersonSplit[] =>
+    categorySplits[cat] ?? makeSplits(people, template);
 
-  const removeOverride = (category: string) => {
-    setCategoryOverrides((prev) => prev.filter((o) => o.category !== category));
+  const applyToAll = () => {
+    const next: Record<string, PersonSplit[]> = {};
+    for (const cat of categories) next[cat] = [...template];
+    setCategorySplits(next);
   };
 
   const handleSave = async () => {
-    const defaultTotal = defaultSplit.reduce((s, p) => s + p.percentage, 0);
-    if (defaultTotal !== 100) {
-      setMsg({ type: "error", text: `Default split adds up to ${defaultTotal}%, needs to be 100%.` });
+    const templateTotal = template.reduce((s, p) => s + p.percentage, 0);
+    if (templateTotal !== 100) {
+      setMsg({ type: "error", text: `Default template totals ${templateTotal}% — must be 100%.` });
       return;
     }
-    for (const override of categoryOverrides) {
-      const total = override.people.reduce((s, p) => s + p.percentage, 0);
+    for (const cat of categories) {
+      const total = getSplits(cat).reduce((s, p) => s + p.percentage, 0);
       if (total !== 100) {
-        setMsg({ type: "error", text: `${override.category} split adds up to ${total}%, needs to be 100%.` });
+        setMsg({ type: "error", text: `${cat} split totals ${total}% — must be 100%.` });
         return;
       }
     }
-    setSaving(true); setMsg(null);
+    setSaving(true);
+    setMsg(null);
     try {
-      await onSave({ defaultSplit, categoryOverrides });
+      await onSave({
+        defaultSplit: template,
+        categoryOverrides: categories.map((cat) => ({
+          category: cat,
+          people: getSplits(cat),
+        })),
+      });
       setMsg({ type: "success", text: "Split rules saved." });
     } catch (e: any) {
       setMsg({ type: "error", text: e?.message ?? "Failed to save." });
@@ -172,10 +181,6 @@ export default function SplitRulesCard({ people, categories, splitRules, onSave 
       setSaving(false);
     }
   };
-
-  const availableOverrideCats = categories.filter(
-    (c) => !categoryOverrides.find((o) => o.category === c)
-  );
 
   if (people.length < 2) {
     return (
@@ -196,81 +201,109 @@ export default function SplitRulesCard({ people, categories, splitRules, onSave 
       <CardContent>
         <Typography variant="h6" fontWeight={800}>Split Rules</Typography>
         <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
-          Set how expenses are split. Moving one slider auto-adjusts the others.
+          Configure how each expense category is split between trip members.
         </Typography>
         <Divider sx={{ my: 1.5 }} />
         {msg && <Alert severity={msg.type} sx={{ mb: 1.5 }}>{msg.text}</Alert>}
 
-        {/* Default split */}
-        <Typography variant="body2" fontWeight={700} sx={{ mb: 1.5 }}>
-          Default Split
-        </Typography>
-        <SplitEditor splits={defaultSplit} onChange={setDefaultSplit} />
-
-        {/* Category overrides */}
-        {categoryOverrides.length > 0 && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="body2" fontWeight={700} sx={{ mb: 1.5 }}>
-              Category Overrides
+        {/* ── Default Template ── */}
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1.5 }}>
+          <Stack spacing={0.25}>
+            <Typography variant="body2" fontWeight={700}>Default Template</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.65 }}>
+              Set a split here, then apply it to every category at once.
             </Typography>
-            <Stack spacing={2}>
-              {categoryOverrides.map((override) => (
-                <Box key={override.category} sx={{
-                  p: 1.5, borderRadius: 2,
-                  bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                    <Typography variant="body2" fontWeight={700}>{override.category}</Typography>
-                    <Tooltip title="Remove override">
-                      <IconButton size="small" color="error" onClick={() => removeOverride(override.category)}>
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                  <SplitEditor
-                    splits={override.people}
-                    onChange={(newSplits) =>
-                      setCategoryOverrides((prev) =>
-                        prev.map((o) =>
-                          o.category === override.category ? { ...o, people: newSplits } : o
-                        )
-                      )
-                    }
-                  />
-                </Box>
-              ))}
-            </Stack>
-          </>
-        )}
+          </Stack>
+          <Tooltip title="Copy this split to all categories">
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ContentCopyIcon fontSize="small" />}
+              onClick={applyToAll}
+              sx={{ flexShrink: 0, ml: 2 }}
+            >
+              Apply to all
+            </Button>
+          </Tooltip>
+        </Stack>
+        <SplitEditor splits={template} onChange={setTemplate} />
 
-        {/* Add category override */}
-        {availableOverrideCats.length > 0 && (
+        {/* ── Per-Category Rules ── */}
+        {categories.length > 0 && (
           <>
             <Divider sx={{ my: 2 }} />
             <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>
-              Add Category Override
+              Per-Category Rules
             </Typography>
-            <Stack direction="row" spacing={1}>
-              <TextField
-                select value={newOverrideCat}
-                onChange={(e) => setNewOverrideCat(e.target.value)}
-                size="small" sx={{ flex: 1 }} label="Category"
-              >
-                {availableOverrideCats.map((c) => (
-                  <MenuItem key={c} value={c}>{c}</MenuItem>
-                ))}
-              </TextField>
-              <Button variant="outlined" startIcon={<AddCircleOutlineIcon />}
-                onClick={addCategoryOverride} disabled={!newOverrideCat}>
-                Add
-              </Button>
+            <Stack spacing={1}>
+              {categories.map((cat) => {
+                const splits = getSplits(cat);
+                const custom = isCustom(splits, template);
+                return (
+                  <Accordion
+                    key={cat}
+                    disableGutters
+                    elevation={0}
+                    sx={{
+                      border: `1px solid ${alpha(
+                        custom ? theme.palette.primary.main : theme.palette.divider,
+                        custom ? 0.22 : 0.5
+                      )}`,
+                      borderRadius: "8px !important",
+                      "&:before": { display: "none" },
+                      bgcolor: alpha(theme.palette.primary.main, custom ? 0.04 : 0),
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      sx={{ minHeight: 48, "& .MuiAccordionSummary-content": { my: 0.75 } }}
+                    >
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, mr: 1 }}>
+                        <Typography variant="body2" fontWeight={700}>{cat}</Typography>
+                        <Chip
+                          label={custom ? "custom" : "same as default"}
+                          size="small"
+                          color={custom ? "primary" : "default"}
+                          sx={{ height: 18, fontSize: 10, fontWeight: 700 }}
+                        />
+                      </Stack>
+                      {custom && (
+                        <Tooltip title="Reset to default template">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCategorySplits((prev) => ({ ...prev, [cat]: [...template] }));
+                            }}
+                            sx={{ mr: 0.5 }}
+                          >
+                            <RestartAltIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ pt: 0, px: 2, pb: 2 }}>
+                      <SplitEditor
+                        splits={splits}
+                        onChange={(newSplits) =>
+                          setCategorySplits((prev) => ({ ...prev, [cat]: newSplits }))
+                        }
+                      />
+                    </AccordionDetails>
+                  </Accordion>
+                );
+              })}
             </Stack>
           </>
         )}
 
-        <Button variant="contained" onClick={handleSave} disabled={saving} sx={{ mt: 2 }} fullWidth>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={saving}
+          sx={{ mt: 2 }}
+          fullWidth
+        >
           {saving ? <CircularProgress size={18} color="inherit" /> : "Save Split Rules"}
         </Button>
       </CardContent>
