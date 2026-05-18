@@ -76,7 +76,7 @@ while IFS= read -r row; do
   # We don't have ownerSub in TripSettings, so we look it up from the
   # Trips table. This is one Query per trip — fine for a one-time backfill.
   ownerSub=$(aws dynamodb scan \
-    --table-name Trips \
+    --table-name trips \
     --filter-expression "tripId = :t" \
     --expression-attribute-values "{\":t\":{\"S\":\"$tripId\"}}" \
     --projection-expression "userSub" \
