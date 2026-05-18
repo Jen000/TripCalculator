@@ -29,6 +29,8 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTrip } from "../context/TripContext";
+import ScrollToTop from "./ScrollToTop";
+import ProfileReminderBanner from "./ProfileReminderBanner";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import BalanceOutlinedIcon from "@mui/icons-material/BalanceOutlined";
@@ -132,14 +134,7 @@ export default function Layout({ children, onLogout, user, mode, onToggleMode }:
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar
-        position="sticky"
-        elevation={0}
-        sx={{
-          bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "light" ? 0.06 : 0.10),
-          borderRadius: 2,
-        }}
-      >
+      <AppBar position="sticky">
         <Toolbar sx={{ gap: 1, py: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, flexGrow: 1 }}>
             Trip Expense Tracker
@@ -295,10 +290,13 @@ export default function Layout({ children, onLogout, user, mode, onToggleMode }:
         </Box>
       </Drawer>
 
+      <ScrollToTop />
+
       <Container
         maxWidth={["/", "/settle-up", "/trip-settings"].includes(location.pathname) ? "xl" : "sm"}
         sx={{ mt: 2, pb: 4, px: { xs: 1.5, sm: 2, md: ["/", "/settle-up", "/trip-settings"].includes(location.pathname) ? 4 : 2 } }}
       >
+        <ProfileReminderBanner />
         {children}
       </Container>
     </Box>
