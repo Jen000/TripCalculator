@@ -3,6 +3,8 @@ import { TripProvider } from "./context/TripContext";
 import { UserProvider } from "./context/UserContext";
 import { BudgetProvider } from "./context/BudgetContext";
 import { TripSettingsProvider } from "./context/TripSettingsContext";
+import { ExpensesProvider } from "./context/ExpensesContext";
+import { PaymentsProvider } from "./context/PaymentsContext";
 import { useEffect, useMemo, useState } from "react";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { makeTheme } from "./theme";
@@ -36,17 +38,21 @@ export default function App() {
             <UserProvider>
               <TripSettingsProvider>
                 <BudgetProvider>
-                  <Layout user={user} onLogout={signOut}
-                    mode={mode} onToggleMode={() => setMode((m) => m === "dark" ? "light" : "dark")}>
-                    <Routes>
-                      <Route path="/" element={<Summary />} />
-                      <Route path="/expenses" element={<ExpenseForm />} />
-                      <Route path="/expenses/all" element={<AllExpenses />} />
-                      <Route path="/trip-settings" element={<TripSettingsPage />} />
-                      <Route path="/settle-up" element={<SettleUpPage />} />
-                      <Route path="/settings" element={<Settings />} />
-                    </Routes>
-                  </Layout>
+                  <ExpensesProvider>
+                    <PaymentsProvider>
+                      <Layout user={user} onLogout={signOut}
+                        mode={mode} onToggleMode={() => setMode((m) => m === "dark" ? "light" : "dark")}>
+                        <Routes>
+                          <Route path="/" element={<Summary />} />
+                          <Route path="/expenses" element={<ExpenseForm />} />
+                          <Route path="/expenses/all" element={<AllExpenses />} />
+                          <Route path="/trip-settings" element={<TripSettingsPage />} />
+                          <Route path="/settle-up" element={<SettleUpPage />} />
+                          <Route path="/settings" element={<Settings />} />
+                        </Routes>
+                      </Layout>
+                    </PaymentsProvider>
+                  </ExpensesProvider>
                 </BudgetProvider>
               </TripSettingsProvider>
             </UserProvider>

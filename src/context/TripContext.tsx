@@ -19,13 +19,39 @@ type TripContextValue = {
 const TripContext = createContext<TripContextValue | null>(null);
 
 const STORAGE_KEY = "activeTripId";
+const TRIPS_CACHE_KEY = "tripsListCache";
+const TRIPS_CACHE_TTL_MS = 60_000;
+
+type TripsCache = { trips: Trip[]; fetchedAt: number };
+
+function loadTripsCache(): TripsCache | null {
+  try {
+    const raw = localStorage.getItem(TRIPS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.trips) || typeof parsed.fetchedAt !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveTripsCache(trips: Trip[]) {
+  try {
+    localStorage.setItem(TRIPS_CACHE_KEY, JSON.stringify({ trips, fetchedAt: Date.now() }));
+  } catch {
+    /* ignore */
+  }
+}
 
 export function TripProvider({ children }: { children: ReactNode }) {
-  const [trips, setTrips] = useState<Trip[]>([]);
+  const initialCache = loadTripsCache();
+  const [trips, setTrips] = useState<Trip[]>(initialCache?.trips ?? []);
   const [activeTripIdState, setActiveTripIdState] = useState<string | null>(() => {
     return localStorage.getItem(STORAGE_KEY) || null;
   });
-  const [loadingTrips, setLoadingTrips] = useState(true);
+  // Only show the boot loading state if we don't have any cached trips to render.
+  const [loadingTrips, setLoadingTrips] = useState(!initialCache);
 
   const setActiveTripId = (id: string | null) => {
     setActiveTripIdState(id);
@@ -34,11 +60,15 @@ export function TripProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshTrips = async () => {
-    setLoadingTrips(true);
+    // If we have nothing rendered yet (no cache), show the spinner. Otherwise
+    // revalidate quietly in the background — the cached list stays on screen.
+    const hasRendered = trips.length > 0;
+    if (!hasRendered) setLoadingTrips(true);
     try {
       const data = await getTrips();
       const list = data.trips ?? [];
       setTrips(list);
+      saveTripsCache(list);
 
       // Keep current selection if it still exists; otherwise fall back to saved; otherwise first; otherwise null.
       const saved = localStorage.getItem(STORAGE_KEY) || null;
@@ -89,6 +119,23 @@ export function TripProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Skip the network call entirely if the cached trips list is still fresh.
+    const fresh = initialCache && Date.now() - initialCache.fetchedAt < TRIPS_CACHE_TTL_MS;
+    if (fresh) {
+      // Make sure the selected trip still exists in the cached list.
+      setActiveTripIdState((current) => {
+        const list = initialCache.trips;
+        const currentValid = current && list.some((t) => t.tripId === current);
+        if (currentValid) return current;
+        const saved = localStorage.getItem(STORAGE_KEY) || null;
+        const savedValid = saved && list.some((t) => t.tripId === saved);
+        const next = savedValid ? saved : list[0]?.tripId ?? null;
+        if (next) localStorage.setItem(STORAGE_KEY, next);
+        else localStorage.removeItem(STORAGE_KEY);
+        return next;
+      });
+      return;
+    }
     refreshTrips();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
