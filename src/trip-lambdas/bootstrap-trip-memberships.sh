@@ -20,7 +20,12 @@
 #   - run from the repo root or anywhere; AWS_REGION must be set or in
 #     your default profile.
 #
-# Usage: ./bootstrap-trip-memberships.sh
+# Usage:
+#   ./bootstrap-trip-memberships.sh
+#
+#   # If your lambdas already have a shared IAM policy that you'd rather
+#   # edit by hand (adding a TripMemberships Statement), skip the IAM step:
+#   SKIP_IAM=1 ./bootstrap-trip-memberships.sh
 
 set -e
 
@@ -64,11 +69,16 @@ echo ""
 echo "──────────────────────────────────────────────────────────────"
 echo " 2. Create + attach IAM policy for TripMemberships access"
 echo "──────────────────────────────────────────────────────────────"
-ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
-TABLE_ARN="arn:aws:dynamodb:${REGION}:${ACCOUNT_ID}:table/${TABLE_NAME}"
-POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/${POLICY_NAME}"
+if [ "${SKIP_IAM:-0}" = "1" ]; then
+  echo "↷ SKIP_IAM=1 — skipping. Make sure your lambda role already grants"
+  echo "  Query/PutItem/DeleteItem/BatchWriteItem on TripMemberships, or the"
+  echo "  fast path will return AccessDenied."
+else
+  ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+  TABLE_ARN="arn:aws:dynamodb:${REGION}:${ACCOUNT_ID}:table/${TABLE_NAME}"
+  POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/${POLICY_NAME}"
 
-POLICY_DOC=$(cat <<JSON
+  POLICY_DOC=$(cat <<JSON
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -86,39 +96,40 @@ POLICY_DOC=$(cat <<JSON
   ]
 }
 JSON
-)
+  )
 
-if aws iam get-policy --policy-arn "$POLICY_ARN" > /dev/null 2>&1; then
-  echo "✓ Policy $POLICY_NAME already exists, skipping create."
-else
-  aws iam create-policy \
-    --policy-name "$POLICY_NAME" \
-    --policy-document "$POLICY_DOC" \
-    --description "Allows Lambda functions to read/write the TripMemberships table." \
-    --output text --query 'Policy.PolicyName' \
-    | xargs -I{} echo "   ✅ Created policy {}"
-fi
-
-# Attach to each affected lambda's execution role. attach-role-policy is
-# idempotent — re-attaching is a no-op.
-for FN in "${LAMBDAS_TO_UPDATE[@]}"; do
-  ROLE_ARN=$(aws lambda get-function-configuration \
-    --function-name "$FN" \
-    --region "$REGION" \
-    --query 'Role' \
-    --output text 2>/dev/null || true)
-
-  if [ -z "$ROLE_ARN" ] || [ "$ROLE_ARN" = "None" ]; then
-    echo "   ⚠️  Could not resolve role for lambda $FN, skipping."
-    continue
+  if aws iam get-policy --policy-arn "$POLICY_ARN" > /dev/null 2>&1; then
+    echo "✓ Policy $POLICY_NAME already exists, skipping create."
+  else
+    aws iam create-policy \
+      --policy-name "$POLICY_NAME" \
+      --policy-document "$POLICY_DOC" \
+      --description "Allows Lambda functions to read/write the TripMemberships table." \
+      --output text --query 'Policy.PolicyName' \
+      | xargs -I{} echo "   ✅ Created policy {}"
   fi
 
-  ROLE_NAME="${ROLE_ARN##*/}"
-  aws iam attach-role-policy \
-    --role-name "$ROLE_NAME" \
-    --policy-arn "$POLICY_ARN"
-  echo "   ✅ Attached $POLICY_NAME to $ROLE_NAME (for $FN)"
-done
+  # Attach to each affected lambda's execution role. attach-role-policy is
+  # idempotent — re-attaching is a no-op.
+  for FN in "${LAMBDAS_TO_UPDATE[@]}"; do
+    ROLE_ARN=$(aws lambda get-function-configuration \
+      --function-name "$FN" \
+      --region "$REGION" \
+      --query 'Role' \
+      --output text 2>/dev/null || true)
+
+    if [ -z "$ROLE_ARN" ] || [ "$ROLE_ARN" = "None" ]; then
+      echo "   ⚠️  Could not resolve role for lambda $FN, skipping."
+      continue
+    fi
+
+    ROLE_NAME="${ROLE_ARN##*/}"
+    aws iam attach-role-policy \
+      --role-name "$ROLE_NAME" \
+      --policy-arn "$POLICY_ARN"
+    echo "   ✅ Attached $POLICY_NAME to $ROLE_NAME (for $FN)"
+  done
+fi
 
 echo ""
 echo "──────────────────────────────────────────────────────────────"
