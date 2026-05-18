@@ -5,11 +5,13 @@ import {
 } from "@mui/material";
 import { useTrip } from "../context/TripContext";
 import { useTripSettings, DEFAULT_CATEGORIES } from "../context/TripSettingsContext";
+import { useExpenses } from "../context/ExpensesContext";
 import { postExpense } from "../api/expenses";
 
 export default function ExpenseForm() {
   const { activeTripId, trips, loadingTrips } = useTrip();
   const { getSettings, loadSettings, loadingSettings } = useTripSettings();
+  const { addExpenseLocal } = useExpenses();
 
   const activeTripName = useMemo(
     () => trips.find((t) => t.tripId === activeTripId)?.name ?? "Trip",
@@ -64,10 +66,11 @@ export default function ExpenseForm() {
     }
     setSaving(true);
     try {
-      await postExpense({
+      const result = await postExpense({
         tripId: activeTripId, date, description: description.trim(),
         whoPaid, category, cost: costNumber,
       });
+      addExpenseLocal(result.expense);
       setDate(""); setDescription(""); setWhoPaid(""); setCategory(categories[0]); setCost("");
       setMsg({ type: "success", text: "Expense added!" });
     } catch (e: any) {

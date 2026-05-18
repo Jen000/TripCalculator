@@ -23,7 +23,7 @@ const STALE_AFTER_MS = 30_000;
 export function ExpensesProvider({ children }: { children: ReactNode }) {
   const [cache, setCache] = useState<Record<string, CacheEntry>>({});
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
-  const inflight = useRef<Record<string, Promise<void>>>({});
+  const inflight = useRef<Record<string, Promise<void> | undefined>>({});
 
   const getExpenses = useCallback(
     (tripId: string): Expense[] | null => cache[tripId]?.expenses ?? null,
@@ -41,8 +41,9 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
       const fresh = existing && Date.now() - existing.fetchedAt < STALE_AFTER_MS;
       if (fresh && !opts?.force) return;
 
-      if (inflight.current[tripId]) {
-        await inflight.current[tripId];
+      const pending = inflight.current[tripId];
+      if (pending) {
+        await pending;
         return;
       }
 

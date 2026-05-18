@@ -35,7 +35,8 @@ import { useNavigate } from "react-router-dom";
 import { useTheme, alpha } from "@mui/material/styles";
 import { useTrip } from "../context/TripContext";
 import { useTripSettings } from "../context/TripSettingsContext";
-import { getExpenses, deleteExpense, type Expense } from "../api/expenses";
+import { useExpenses } from "../context/ExpensesContext";
+import { deleteExpense, type Expense } from "../api/expenses";
 import ExpenseEditDialog from "../components/ExpenseEditDialog";
 
 const CATEGORIES = [
@@ -61,6 +62,13 @@ function formatMoneyFromCents(cents: number) {
 export default function AllExpenses() {
   const { trips, activeTripId, loadingTrips } = useTrip();
   const { getSettings, loadSettings } = useTripSettings();
+  const {
+    getExpenses: cacheGetExpenses,
+    isLoading: expensesLoading,
+    loadExpenses,
+    updateExpenseLocal,
+    removeExpenseLocal,
+  } = useExpenses();
   const navigate = useNavigate();
   const theme = useTheme();
   const settings = activeTripId ? getSettings(activeTripId) : null;
@@ -70,8 +78,9 @@ export default function AllExpenses() {
     [trips, activeTripId]
   );
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
+  const expenses = (activeTripId && cacheGetExpenses(activeTripId)) || [];
+  const hasCached = activeTripId ? cacheGetExpenses(activeTripId) !== null : false;
+  const loading = !!activeTripId && !hasCached && expensesLoading(activeTripId);
   const [error, setError] = useState("");
 
   // Filters
@@ -89,16 +98,12 @@ export default function AllExpenses() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (loadingTrips || !activeTripId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (loadingTrips || !activeTripId) return;
+    setError("");
     loadSettings(activeTripId);
-    getExpenses(activeTripId)
-      .then((d) => setExpenses(d.expenses ?? []))
-      .catch((e: any) => setError(e?.message ?? "Failed to load expenses"))
-      .finally(() => setLoading(false));
+    loadExpenses(activeTripId).catch((e: any) =>
+      setError(e?.message ?? "Failed to load expenses")
+    );
   }, [activeTripId, loadingTrips]);
 
   const allPayers = useMemo(() => {
@@ -123,9 +128,7 @@ export default function AllExpenses() {
       });
   }, [expenses, search, categoryFilter, payerFilter]);
 
-  const handleSaved = (updated: Expense) => {
-    setExpenses((prev) => prev.map((e) => (e.expenseId === updated.expenseId ? updated : e)));
-  };
+  const handleSaved = (updated: Expense) => updateExpenseLocal(updated);
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -133,7 +136,7 @@ export default function AllExpenses() {
     setDeleteError(null);
     try {
       await deleteExpense(deleteTarget.expenseId, deleteTarget.tripId);
-      setExpenses((prev) => prev.filter((e) => e.expenseId !== deleteTarget.expenseId));
+      removeExpenseLocal(deleteTarget.tripId, deleteTarget.expenseId);
       setDeleteTarget(null);
     } catch (e: any) {
       setDeleteError(e?.message ?? "Failed to delete expense.");
