@@ -6,23 +6,23 @@
     <title>Trip Tracker</title>
     <meta name="description" content="Track shared trip expenses, split costs, and settle up with the group." />
 
-    <!-- Browser tab favicons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <!-- Browser tab favicon -->
+    <link rel="icon" type="image/svg+xml" href="/trip-tracker-favicon.svg" />
 
     <!-- PWA manifest -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#1F7A63" />
 
-    <!-- iOS "Add to Home Screen" -->
+    <!-- iOS "Add to Home Screen". Note: iOS Safari ignores SVG apple-touch-icons
+         today and falls back to a page screenshot. If the home-screen icon
+         doesn't render as the compass, export PNG versions and re-link below. -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Trip Tracker" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png" />
-    <link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon-167x167.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-192.svg" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/apple-touch-icon-192.svg" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/apple-touch-icon-512.svg" />
+    <link rel="apple-touch-icon" sizes="1024x1024" href="/apple-touch-icon-1024.svg" />
   </head>
   <body>
     <div id="root"></div>

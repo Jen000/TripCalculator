@@ -1,0 +1,11 @@
+<svg width="48" height="48" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="240" rx="54" fill="#1F7A63"/>
+  <circle cx="120" cy="120" r="80" fill="#ffffff"/>
+  <g transform="rotate(-15,120,120)">
+    <path d="M120 120L110 126L120 44L130 126Z" fill="#C0392B"/>
+    <path d="M120 120L110 114L120 196L130 114Z" fill="#1F7A63" opacity="0.72"/>
+  </g>
+  <circle cx="120" cy="120" r="12" fill="#f0f0f0"/>
+  <circle cx="120" cy="120" r="6" fill="#1a1a1a"/>
+  <text x="120" y="26" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800" fill="#ffffff">$</text>
+</svg>

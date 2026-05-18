@@ -1,0 +1,31 @@
+<svg width="1024" height="1024" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="240" rx="54" fill="#1F7A63"/>
+  <circle cx="120" cy="120" r="98" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.18"/>
+  <circle cx="120" cy="120" r="88" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.28"/>
+  <!-- Cardinal ticks -->
+  <line x1="120" y1="34" x2="120" y2="50" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  <line x1="120" y1="190" x2="120" y2="206" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <line x1="206" y1="120" x2="190" y2="120" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <line x1="34" y1="120" x2="50" y2="120" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <!-- Intercardinal ticks -->
+  <line x1="180" y1="60" x2="172" y2="68" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+  <line x1="180" y1="180" x2="172" y2="172" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+  <line x1="60" y1="180" x2="68" y2="172" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+  <line x1="60" y1="60" x2="68" y2="68" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+  <!-- Compass face -->
+  <circle cx="120" cy="120" r="72" fill="#ffffff"/>
+  <!-- Needles, rotated -15deg for dynamism -->
+  <g transform="rotate(-15,120,120)">
+    <path d="M120 120L112 124L120 50L128 124Z" fill="#C0392B"/>
+    <path d="M120 120L112 116L120 190L128 116Z" fill="#1F7A63" opacity="0.72"/>
+  </g>
+  <!-- Center cap -->
+  <circle cx="120" cy="120" r="10" fill="#f0f0f0"/>
+  <circle cx="120" cy="120" r="5" fill="#1a1a1a"/>
+  <!-- $ marker at top -->
+  <text x="120" y="28" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="17" font-weight="800" fill="#ffffff">$</text>
+  <!-- E W S labels -->
+  <text x="209" y="124" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#ffffff" opacity="0.45">E</text>
+  <text x="31" y="124" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#ffffff" opacity="0.45">W</text>
+  <text x="120" y="214" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#ffffff" opacity="0.45">S</text>
+</svg>

@@ -1,0 +1,16 @@
+<svg width="192" height="192" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="240" rx="54" fill="#1F7A63"/>
+  <circle cx="120" cy="120" r="88" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.28"/>
+  <line x1="120" y1="34" x2="120" y2="50" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  <line x1="120" y1="190" x2="120" y2="206" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <line x1="206" y1="120" x2="190" y2="120" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <line x1="34" y1="120" x2="50" y2="120" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <circle cx="120" cy="120" r="72" fill="#ffffff"/>
+  <g transform="rotate(-15,120,120)">
+    <path d="M120 120L112 124L120 50L128 124Z" fill="#C0392B"/>
+    <path d="M120 120L112 116L120 190L128 116Z" fill="#1F7A63" opacity="0.72"/>
+  </g>
+  <circle cx="120" cy="120" r="10" fill="#f0f0f0"/>
+  <circle cx="120" cy="120" r="5" fill="#1a1a1a"/>
+  <text x="120" y="28" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="17" font-weight="800" fill="#ffffff">$</text>
+</svg>
