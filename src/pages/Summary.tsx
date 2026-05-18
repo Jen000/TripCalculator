@@ -17,9 +17,11 @@ import {
 
 import { useTrip } from "../context/TripContext";
 import { useTripSettings } from "../context/TripSettingsContext";
+import { useExpenses } from "../context/ExpensesContext";
 import { exportTripCsv } from "../api/trips";
-import { getExpenses, deleteExpense, type Expense } from "../api/expenses";
+import { deleteExpense, type Expense } from "../api/expenses";
 import ExpenseEditDialog from "../components/ExpenseEditDialog";
+import { SummarySkeleton } from "../components/PageSkeletons";
 
 function formatMoney(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -92,13 +94,18 @@ function BudgetBar({ label, spentCents, limitCents, isTotal }: {
 export default function Summary() {
   const { trips, activeTripId, loadingTrips } = useTrip();
   const { getSettings, loadSettings } = useTripSettings();
+  const {
+    getExpenses: cacheGetExpenses,
+    isLoading: expensesLoading,
+    loadExpenses,
+    updateExpenseLocal,
+    removeExpenseLocal,
+  } = useExpenses();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
@@ -110,15 +117,18 @@ export default function Summary() {
     [trips, activeTripId]
   );
   const settings = activeTripId ? getSettings(activeTripId) : null;
+  const expenses = (activeTripId && cacheGetExpenses(activeTripId)) || [];
+  // Loading only blocks UI when we genuinely have no cached data yet.
+  const hasCached = activeTripId ? cacheGetExpenses(activeTripId) !== null : false;
+  const loading = !!activeTripId && !hasCached && expensesLoading(activeTripId);
 
   useEffect(() => {
     if (loadingTrips) return;
-    if (!activeTripId) { setExpenses([]); setError(""); setLoading(false); return; }
-    setLoading(true); setError("");
-    getExpenses(activeTripId)
-      .then((d) => setExpenses(d.expenses ?? []))
-      .catch((e: any) => setError(e?.message ?? "Failed to load expenses"))
-      .finally(() => setLoading(false));
+    if (!activeTripId) { setError(""); return; }
+    setError("");
+    loadExpenses(activeTripId).catch((e: any) =>
+      setError(e?.message ?? "Failed to load expenses")
+    );
     loadSettings(activeTripId);
   }, [activeTripId, loadingTrips]);
 
@@ -145,15 +155,14 @@ export default function Summary() {
 
   const hasBudget = settings && (settings.totalBudgetCents !== null || settings.categoryBudgets.length > 0);
 
-  const handleSaved = (updated: Expense) =>
-    setExpenses((prev) => prev.map((e) => e.expenseId === updated.expenseId ? updated : e));
+  const handleSaved = (updated: Expense) => updateExpenseLocal(updated);
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setDeleting(true); setDeleteError(null);
     try {
       await deleteExpense(deleteTarget.expenseId, deleteTarget.tripId);
-      setExpenses((prev) => prev.filter((e) => e.expenseId !== deleteTarget.expenseId));
+      removeExpenseLocal(deleteTarget.tripId, deleteTarget.expenseId);
       setDeleteTarget(null);
     } catch (e: any) {
       setDeleteError(e?.message ?? "Failed to delete.");
@@ -188,7 +197,7 @@ export default function Summary() {
         </Stack>
 
         {error && <Alert severity="error">{error}</Alert>}
-        {(loadingTrips || loading) && <Box sx={{ display: "grid", placeItems: "center", py: 4 }}><CircularProgress /></Box>}
+        {(loadingTrips || loading) && <SummarySkeleton />}
         {!loadingTrips && !loading && !error && expenses.length === 0 && (
           <Alert severity="info">No expenses yet. Add one on the <b>Add Expense</b> page.</Alert>
         )}

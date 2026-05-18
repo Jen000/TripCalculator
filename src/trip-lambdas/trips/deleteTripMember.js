@@ -1,9 +1,10 @@
-import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb } from "./db.js";
 import { response } from "./response.js";
 import { getUserSub } from "./auth.js";
 
 const TABLE_NAME = process.env.TRIP_SETTINGS_TABLE;
+const TRIP_MEMBERSHIPS_TABLE = process.env.TRIP_MEMBERSHIPS_TABLE;
 
 export const handler = async (event) => {
   try {
@@ -33,6 +34,19 @@ export const handler = async (event) => {
       UpdateExpression: "SET members = :members",
       ExpressionAttributeValues: { ":members": filtered },
     }));
+
+    if (TRIP_MEMBERSHIPS_TABLE) {
+      try {
+        await ddb.send(new DeleteCommand({
+          TableName: TRIP_MEMBERSHIPS_TABLE,
+          Key: { userSub: targetUserId, tripId },
+        }));
+      } catch (err) {
+        console.error("Failed to delete TripMemberships row:", err.message);
+        // Non-fatal: TripSettings.members is the source of truth. Stale row
+        // will only cause that user to see a phantom trip until cleanup.
+      }
+    }
 
     return response(200, { message: "Member removed" });
   } catch (err) {

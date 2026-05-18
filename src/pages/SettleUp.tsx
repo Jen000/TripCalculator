@@ -11,12 +11,15 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 
+import { SettleUpSkeleton } from "../components/PageSkeletons";
 import { useTrip } from "../context/TripContext";
 import { useTripSettings } from "../context/TripSettingsContext";
+import { useExpenses } from "../context/ExpensesContext";
+import { usePayments } from "../context/PaymentsContext";
 import type { SplitRules } from "../api/tripSettings";
 import { useUser } from "../context/UserContext";
-import { getExpenses, type Expense } from "../api/expenses";
-import { getPayments, recordPayment, deletePayment, type Payment } from "../api/tripSettings";
+import { type Expense } from "../api/expenses";
+import { recordPayment, deletePayment, type Payment } from "../api/tripSettings";
 
 function formatMoney(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -109,6 +112,18 @@ export default function SettleUpPage() {
   const theme = useTheme();
   const { trips, activeTripId, loadingTrips } = useTrip();
   const { getSettings, loadSettings } = useTripSettings();
+  const {
+    getExpenses: cacheGetExpenses,
+    isLoading: expensesLoading,
+    loadExpenses,
+  } = useExpenses();
+  const {
+    getPayments: cacheGetPayments,
+    isLoading: paymentsLoading,
+    loadPayments,
+    addPaymentLocal,
+    removePaymentLocal,
+  } = usePayments();
   const { profile } = useUser();
 
   const activeTripName = useMemo(
@@ -116,9 +131,14 @@ export default function SettleUpPage() {
     [trips, activeTripId]
   );
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const expenses: Expense[] = (activeTripId && cacheGetExpenses(activeTripId)) || [];
+  const payments: Payment[] = (activeTripId && cacheGetPayments(activeTripId)) || [];
+  const hasCachedExpenses = activeTripId ? cacheGetExpenses(activeTripId) !== null : false;
+  const hasCachedPayments = activeTripId ? cacheGetPayments(activeTripId) !== null : false;
+  const loading =
+    !!activeTripId &&
+    ((!hasCachedExpenses && expensesLoading(activeTripId)) ||
+      (!hasCachedPayments && paymentsLoading(activeTripId)));
   const [error, setError] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -135,14 +155,12 @@ export default function SettleUpPage() {
   }, [activeTripId]);
 
   useEffect(() => {
-    if (loadingTrips || !activeTripId) { setLoading(false); return; }
-    setLoading(true);
+    if (loadingTrips || !activeTripId) return;
+    setError("");
     Promise.all([
-      getExpenses(activeTripId).then((d) => setExpenses(d.expenses ?? [])),
-      getPayments(activeTripId).then((d) => setPayments(d.payments ?? [])).catch(() => setPayments([])),
-    ])
-      .catch((e: any) => setError(e?.message ?? "Failed to load data"))
-      .finally(() => setLoading(false));
+      loadExpenses(activeTripId),
+      loadPayments(activeTripId),
+    ]).catch((e: any) => setError(e?.message ?? "Failed to load data"));
   }, [activeTripId, loadingTrips]);
 
   const settings = activeTripId ? getSettings(activeTripId) : null;
@@ -181,7 +199,7 @@ export default function SettleUpPage() {
         fromUser: dialogFrom, toUser: dialogTo,
         amountCents: Math.round(amount * 100), note: dialogNote.trim() || undefined,
       });
-      setPayments((prev) => [...prev, result.payment]);
+      addPaymentLocal(result.payment);
       setDialogOpen(false);
     } catch {
       const local: Payment = {
@@ -191,7 +209,7 @@ export default function SettleUpPage() {
         note: dialogNote.trim() || undefined,
         createdAt: new Date().toISOString(),
       };
-      setPayments((prev) => [...prev, local]);
+      addPaymentLocal(local);
       setDialogOpen(false);
     } finally { setDialogSaving(false); }
   };
@@ -201,7 +219,7 @@ export default function SettleUpPage() {
     setDeletingPaymentId(paymentId);
     try { await deletePayment(activeTripId, paymentId); } catch { /* local fallback */ }
     finally {
-      setPayments((prev) => prev.filter((p) => p.paymentId !== paymentId));
+      removePaymentLocal(activeTripId, paymentId);
       setDeletingPaymentId(null);
     }
   };
@@ -221,7 +239,7 @@ export default function SettleUpPage() {
         {error && <Alert severity="error">{error}</Alert>}
 
         {loading || loadingTrips ? (
-          <Box sx={{ display: "grid", placeItems: "center", py: 6 }}><CircularProgress /></Box>
+          <SettleUpSkeleton />
         ) : expenses.length === 0 ? (
           <Alert severity="info">No expenses yet — nothing to settle up.</Alert>
         ) : (

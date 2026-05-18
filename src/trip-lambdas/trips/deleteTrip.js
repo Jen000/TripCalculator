@@ -1,5 +1,6 @@
 import {
   DeleteCommand,
+  GetCommand,
   QueryCommand,
   BatchWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
@@ -11,6 +12,8 @@ import { getUserSub } from "./auth.js";
 const TRIPS_TABLE = process.env.TRIPS_TABLE;
 const EXPENSES_TABLE = process.env.EXPENSES_TABLE;
 const EXPENSES_GSI = process.env.EXPENSES_GSI || "gsiUserTrip";
+const TRIP_SETTINGS_TABLE = process.env.TRIP_SETTINGS_TABLE;
+const TRIP_MEMBERSHIPS_TABLE = process.env.TRIP_MEMBERSHIPS_TABLE;
 
 async function batchDelete(tableName, keys) {
   for (let i = 0; i < keys.length; i += 25) {
@@ -50,6 +53,23 @@ export const handler = async (event) => {
     const tripId = event?.pathParameters?.tripId;
     if (!tripId) return response(400, { message: "tripId required" });
 
+    // 0) Look up trip members before deleting anything so we can clean
+    // up TripMemberships rows at the end.
+    let memberSubsToClean = [];
+    if (TRIP_MEMBERSHIPS_TABLE && TRIP_SETTINGS_TABLE) {
+      try {
+        const settings = await ddb.send(new GetCommand({
+          TableName: TRIP_SETTINGS_TABLE,
+          Key: { tripId },
+        }));
+        memberSubsToClean = (settings.Item?.members ?? [])
+          .map((m) => m.userId)
+          .filter(Boolean);
+      } catch (err) {
+        console.warn("Could not fetch trip members for cleanup:", err.message);
+      }
+    }
+
     // 1) Delete the trip row
     await ddb.send(
       new DeleteCommand({
@@ -86,6 +106,19 @@ export const handler = async (event) => {
     // 3) Delete expenses in batches
     if (keysToDelete.length) {
       await batchDelete(EXPENSES_TABLE, keysToDelete);
+    }
+
+    // 4) Clean up TripMemberships rows for the (now-deleted) trip's members.
+    if (TRIP_MEMBERSHIPS_TABLE && memberSubsToClean.length) {
+      const membershipKeys = memberSubsToClean.map((memberSub) => ({
+        userSub: memberSub,
+        tripId,
+      }));
+      try {
+        await batchDelete(TRIP_MEMBERSHIPS_TABLE, membershipKeys);
+      } catch (err) {
+        console.warn("TripMemberships cleanup failed:", err.message);
+      }
     }
 
     return response(200, {

@@ -30,6 +30,24 @@ type Props = {
   children: (args: { user: AuthUser; signOut: () => void }) => ReactNode;
 };
 
+// Cache keys written by various contexts that are user-scoped and must be
+// invalidated when the signed-in user changes. Keep this list in sync when
+// new per-user caches are added.
+const USER_SCOPED_LOCAL_KEYS = [
+  "tripsListCache",       // TripContext
+  "tripSettingsCache",    // TripSettingsContext
+  "activeTripId",         // TripContext
+  "tripBudgets",          // BudgetContext
+];
+const USER_SCOPED_SESSION_KEYS = [
+  "profileReminderDismissed", // ProfileReminderBanner
+];
+
+function clearUserScopedCaches() {
+  for (const k of USER_SCOPED_LOCAL_KEYS) localStorage.removeItem(k);
+  for (const k of USER_SCOPED_SESSION_KEYS) sessionStorage.removeItem(k);
+}
+
 function normalizeError(err: any): string {
   const msg = String(err?.message ?? err ?? "").toLowerCase();
   if (msg.includes("incorrect username or password") || msg.includes("not authorized"))
@@ -75,6 +93,7 @@ export default function AuthGate({ children }: Props) {
       if (payload.event === "signedIn") {
         getCurrentUser().then((u) => setUser(u)).catch(() => {});
       } else if (payload.event === "signedOut") {
+        clearUserScopedCaches();
         setUser(null);
         setFlow("signIn");
         setPassword("");
