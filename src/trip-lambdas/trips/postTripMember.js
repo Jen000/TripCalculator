@@ -1,4 +1,4 @@
-import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { UpdateCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import {
   CognitoIdentityProviderClient,
   ListUsersCommand,
@@ -8,6 +8,7 @@ import { response } from "./response.js";
 import { getUserSub } from "./auth.js";
 
 const TABLE_NAME = process.env.TRIP_SETTINGS_TABLE;
+const TRIP_MEMBERSHIPS_TABLE = process.env.TRIP_MEMBERSHIPS_TABLE;
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
 
 const cognito = new CognitoIdentityProviderClient({});
@@ -72,6 +73,26 @@ export const handler = async (event) => {
         ":newMember": [newMember],
       },
     }));
+
+    // Also write a membership row so GET /trips can find shared trips without
+    // scanning. The caller is the trip owner in normal usage; we store their
+    // sub so getTrip can do an exact (ownerSub, tripId) BatchGet.
+    if (TRIP_MEMBERSHIPS_TABLE) {
+      try {
+        await ddb.send(new PutCommand({
+          TableName: TRIP_MEMBERSHIPS_TABLE,
+          Item: {
+            userSub: invitedSub,
+            tripId,
+            ownerSub: userSub,
+            addedAt: newMember.addedAt,
+          },
+        }));
+      } catch (err) {
+        console.error("Failed to write TripMemberships row:", err.message);
+        // Non-fatal: TripSettings.members is still the source of truth.
+      }
+    }
 
     return response(200, { message: "Member added", member: newMember });
   } catch (err) {
