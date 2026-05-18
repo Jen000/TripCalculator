@@ -11,6 +11,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 
+import { SettleUpSkeleton } from "../components/PageSkeletons";
 import { useTrip } from "../context/TripContext";
 import { useTripSettings } from "../context/TripSettingsContext";
 import { useExpenses } from "../context/ExpensesContext";
@@ -238,7 +239,7 @@ export default function SettleUpPage() {
         {error && <Alert severity="error">{error}</Alert>}
 
         {loading || loadingTrips ? (
-          <Box sx={{ display: "grid", placeItems: "center", py: 6 }}><CircularProgress /></Box>
+          <SettleUpSkeleton />
         ) : expenses.length === 0 ? (
           <Alert severity="info">No expenses yet — nothing to settle up.</Alert>
         ) : (

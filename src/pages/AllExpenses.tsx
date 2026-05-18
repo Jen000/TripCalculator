@@ -38,6 +38,7 @@ import { useTripSettings } from "../context/TripSettingsContext";
 import { useExpenses } from "../context/ExpensesContext";
 import { deleteExpense, type Expense } from "../api/expenses";
 import ExpenseEditDialog from "../components/ExpenseEditDialog";
+import { AllExpensesSkeleton } from "../components/PageSkeletons";
 
 const CATEGORIES = [
   "All",
@@ -222,9 +223,7 @@ export default function AllExpenses() {
       </Card>
 
       {loading || loadingTrips ? (
-        <Box sx={{ display: "grid", placeItems: "center", py: 6 }}>
-          <CircularProgress />
-        </Box>
+        <AllExpensesSkeleton />
       ) : filtered.length === 0 ? (
         <Alert severity="info">No expenses match your filters.</Alert>
       ) : (

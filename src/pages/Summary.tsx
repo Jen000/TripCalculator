@@ -21,6 +21,7 @@ import { useExpenses } from "../context/ExpensesContext";
 import { exportTripCsv } from "../api/trips";
 import { deleteExpense, type Expense } from "../api/expenses";
 import ExpenseEditDialog from "../components/ExpenseEditDialog";
+import { SummarySkeleton } from "../components/PageSkeletons";
 
 function formatMoney(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -196,7 +197,7 @@ export default function Summary() {
         </Stack>
 
         {error && <Alert severity="error">{error}</Alert>}
-        {(loadingTrips || loading) && <Box sx={{ display: "grid", placeItems: "center", py: 4 }}><CircularProgress /></Box>}
+        {(loadingTrips || loading) && <SummarySkeleton />}
         {!loadingTrips && !loading && !error && expenses.length === 0 && (
           <Alert severity="info">No expenses yet. Add one on the <b>Add Expense</b> page.</Alert>
         )}
