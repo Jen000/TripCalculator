@@ -173,9 +173,23 @@ export default function SettleUpPage() {
 
   const allPeople = useMemo(() => {
     const explicit = settings?.people ?? [];
-    const memberNames = (settings?.members ?? []).map((m) => m.firstName ?? m.email.split("@")[0]);
-    const lower = new Set(explicit.map((p) => p.toLowerCase()));
-    return [...explicit, ...memberNames.filter((n) => !lower.has(n.toLowerCase()))];
+    const members = settings?.members ?? [];
+
+    // Only remap a stored entry when firstName is confirmed — falling back to
+    // the email prefix corrupts correctly-stored "Sam" to "sam" when null.
+    const memberNameMap = new Map(
+      members
+        .filter((m) => m.email && m.firstName)
+        .map((m) => [m.email.split("@")[0].toLowerCase(), m.firstName as string])
+    );
+
+    const resolved = explicit.map((name) => memberNameMap.get(name.toLowerCase()) ?? name);
+    const lower = new Set(resolved.map((p) => p.toLowerCase()));
+    const extra = members
+      .map((m) => m.firstName ?? m.email.split("@")[0])
+      .filter((n) => !lower.has(n.toLowerCase()));
+
+    return [...resolved, ...extra];
   }, [settings?.people, settings?.members]);
 
   const { perPerson, transfers, totalCents } = useMemo(
