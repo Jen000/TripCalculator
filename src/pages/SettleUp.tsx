@@ -37,13 +37,19 @@ type Transfer = {
 function computeSettleUp(expenses: Expense[], payments: Payment[], splitRules?: SplitRules, allPeople?: string[]) {
   if (expenses.length === 0) return { perPerson: [], transfers: [], totalCents: 0 };
 
+  // Build a case-insensitive lookup so stored expense/payment names like "sam"
+  // correctly merge with the canonical display name "Sam" from the people list.
+  const canonicalName = new Map<string, string>();
+  for (const name of allPeople ?? []) canonicalName.set(name.toLowerCase(), name);
+  const resolve = (raw: string) => canonicalName.get(raw.toLowerCase()) ?? raw;
+
   // Seed every known member at $0 so people who haven't paid still appear.
   const paidMap = new Map<string, number>();
   for (const name of allPeople ?? []) {
     paidMap.set(name, 0);
   }
   for (const e of expenses) {
-    const key = (e.whoPaid || "Unknown").trim();
+    const key = resolve((e.whoPaid || "Unknown").trim());
     paidMap.set(key, (paidMap.get(key) ?? 0) + (e.costCents ?? 0));
   }
 
@@ -100,7 +106,7 @@ function computeSettleUp(expenses: Expense[], payments: Payment[], splitRules?: 
 
   const transfers: Transfer[] = rawTransfers.map((t) => {
     const paidCents = payments
-      .filter((p) => p.fromUser === t.from && p.toUser === t.to)
+      .filter((p) => resolve(p.fromUser) === t.from && resolve(p.toUser) === t.to)
       .reduce((sum, p) => sum + p.amountCents, 0);
     return { from: t.from, to: t.to, owedCents: t.cents, paidCents, remainingCents: Math.max(0, t.cents - paidCents) };
   });

@@ -53,13 +53,26 @@ export const handler = async (event) => {
       }
     }
 
+    // Reconcile the stored people list against current member names.
+    // If a stored entry matches a member's email prefix, replace it with that
+    // member's current firstName so the "Who Paid" dropdown and Settle Up page
+    // both show the real name rather than a stale email-prefix snapshot.
+    const emailPrefixToName = new Map(
+      members
+        .filter((m) => m.firstName && m.email)
+        .map((m) => [m.email.split("@")[0].toLowerCase(), m.firstName])
+    );
+    const people = (item?.people ?? []).map((name) =>
+      emailPrefixToName.get(name.toLowerCase()) ?? name
+    );
+
     return response(200, {
       tripId,
       categories: item?.categories ?? DEFAULT_CATEGORIES,
       totalBudgetCents: item?.totalBudgetCents ?? null,
       categoryBudgets: item?.categoryBudgets ?? [],
       members,
-      people: item?.people ?? [],
+      people,
       splitRules: item?.splitRules ?? { defaultSplit: [], categoryOverrides: [] },
     });
   } catch (err) {
