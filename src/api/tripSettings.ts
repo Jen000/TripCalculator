@@ -57,7 +57,7 @@ export type TripSettings = {
   categories: string[];
   totalBudgetCents: number | null;
   categoryBudgets: { category: string; limitCents: number }[];
-  members: { userId: string; email: string; role: "owner" | "member" }[];
+  members: { userId: string; email: string; firstName?: string | null; role: "owner" | "member" }[];
   people: string[];
   splitRules: SplitRules;
 };
@@ -87,11 +87,16 @@ export async function renameTripApi(tripId: string, name: string): Promise<void>
 
 // ── Members ───────────────────────────────────────────────────────────────────
 
-export async function inviteTripMember(tripId: string, email: string): Promise<void> {
-  await authedFetch(`/trips/${encodeURIComponent(tripId)}/members`, {
+export async function inviteTripMember(
+  tripId: string,
+  email: string
+): Promise<{ userId: string; email: string; firstName?: string | null; role: string }> {
+  const res = await authedFetch(`/trips/${encodeURIComponent(tripId)}/members`, {
     method: "POST",
     body: JSON.stringify({ email }),
   });
+  const data = await res.json() as { member: { userId: string; email: string; firstName?: string | null; role: string } };
+  return data.member;
 }
 
 export async function removeTripMember(tripId: string, userId: string): Promise<void> {

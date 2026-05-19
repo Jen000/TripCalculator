@@ -26,7 +26,7 @@ export default function ExpenseForm() {
   const categories = settings?.categories?.length ? settings.categories : DEFAULT_CATEGORIES;
   const people = useMemo(() => {
     const explicit = settings?.people ?? [];
-    const memberNames = (settings?.members ?? []).map((m) => m.email.split("@")[0]);
+    const memberNames = (settings?.members ?? []).map((m) => m.firstName ?? m.email.split("@")[0]);
     const lower = new Set(explicit.map((p) => p.toLowerCase()));
     return [...explicit, ...memberNames.filter((n) => !lower.has(n.toLowerCase()))];
   }, [settings?.people, settings?.members]);

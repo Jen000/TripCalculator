@@ -9,6 +9,7 @@ import { getUserSub } from "./auth.js";
 
 const TABLE_NAME = process.env.TRIP_SETTINGS_TABLE;
 const TRIP_MEMBERSHIPS_TABLE = process.env.TRIP_MEMBERSHIPS_TABLE;
+const USERS_TABLE = process.env.USERS_TABLE;
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
 
 const cognito = new CognitoIdentityProviderClient({});
@@ -45,6 +46,20 @@ export const handler = async (event) => {
     if (!invitedSub) return response(500, { message: "Could not resolve user sub" });
     if (invitedSub === userSub) return response(400, { message: "You can't invite yourself." });
 
+    // 1b. Look up the invited user's display name from their profile
+    let invitedFirstName = null;
+    if (USERS_TABLE) {
+      try {
+        const userRecord = await ddb.send(new GetCommand({
+          TableName: USERS_TABLE,
+          Key: { userSub: invitedSub },
+        }));
+        invitedFirstName = userRecord.Item?.firstName ?? null;
+      } catch (err) {
+        console.warn("Could not fetch invited user's firstName:", err.message);
+      }
+    }
+
     // 2. Get current settings to check for duplicate
     const existing = await ddb.send(new GetCommand({
       TableName: TABLE_NAME,
@@ -60,6 +75,7 @@ export const handler = async (event) => {
     const newMember = {
       userId: invitedSub,
       email: invitedEmail,
+      ...(invitedFirstName ? { firstName: invitedFirstName } : {}),
       role: "member",
       addedAt: new Date().toISOString(),
     };
