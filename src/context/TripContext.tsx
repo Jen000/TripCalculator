@@ -86,6 +86,11 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
         return next;
       });
+    } catch (err) {
+      // Don't wipe currently-rendered trips on a transient network/server error.
+      // An invited member with no cache will see 0 trips until the server recovers,
+      // but existing cached data stays visible rather than disappearing.
+      console.error("Failed to load trips:", err);
     } finally {
       setLoadingTrips(false);
     }
