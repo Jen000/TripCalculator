@@ -26,9 +26,25 @@ export default function ExpenseForm() {
   const categories = settings?.categories?.length ? settings.categories : DEFAULT_CATEGORIES;
   const people = useMemo(() => {
     const explicit = settings?.people ?? [];
-    const memberNames = (settings?.members ?? []).map((m) => m.firstName ?? m.email.split("@")[0]);
-    const lower = new Set(explicit.map((p) => p.toLowerCase()));
-    return [...explicit, ...memberNames.filter((n) => !lower.has(n.toLowerCase()))];
+    const members = settings?.members ?? [];
+
+    // Map email-prefix → current firstName so stale stored names (e.g. "sam"
+    // written at invite time) are replaced with the real display name ("Sam").
+    const memberNameMap = new Map(
+      members
+        .filter((m) => m.email)
+        .map((m) => [m.email.split("@")[0].toLowerCase(), m.firstName ?? m.email.split("@")[0]])
+    );
+
+    // Resolve each explicit entry to its canonical name, then append any
+    // member names not already represented.
+    const resolved = explicit.map((name) => memberNameMap.get(name.toLowerCase()) ?? name);
+    const lower = new Set(resolved.map((p) => p.toLowerCase()));
+    const extra = members
+      .map((m) => m.firstName ?? m.email.split("@")[0])
+      .filter((n) => !lower.has(n.toLowerCase()));
+
+    return [...resolved, ...extra];
   }, [settings?.people, settings?.members]);
 
   const [date, setDate] = useState("");
