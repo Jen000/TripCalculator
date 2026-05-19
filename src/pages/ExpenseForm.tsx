@@ -28,12 +28,13 @@ export default function ExpenseForm() {
     const explicit = settings?.people ?? [];
     const members = settings?.members ?? [];
 
-    // Map email-prefix → current firstName so stale stored names (e.g. "sam"
-    // written at invite time) are replaced with the real display name ("Sam").
+    // Only remap a stored entry when we have a confirmed firstName for that
+    // member. Falling back to the email prefix here would corrupt a correctly-
+    // stored "Sam" → looked up as "sam" → returned "sam" when firstName is null.
     const memberNameMap = new Map(
       members
-        .filter((m) => m.email)
-        .map((m) => [m.email.split("@")[0].toLowerCase(), m.firstName ?? m.email.split("@")[0]])
+        .filter((m) => m.email && m.firstName)
+        .map((m) => [m.email.split("@")[0].toLowerCase(), m.firstName as string])
     );
 
     // Resolve each explicit entry to its canonical name, then append any
