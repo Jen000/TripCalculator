@@ -110,7 +110,15 @@ export const handler = async (event) => {
     let ownedTrips, sharedTrips;
 
     if (TRIP_MEMBERSHIPS_TABLE) {
-      ({ ownedTrips, sharedTrips } = await loadOwnedAndSharedFast(userSub));
+      // Fast path — if the table is inaccessible (IAM, doesn't exist yet) fall
+      // back to the legacy scan so GET /trips never returns 500 just because the
+      // memberships table has an infra problem.
+      try {
+        ({ ownedTrips, sharedTrips } = await loadOwnedAndSharedFast(userSub));
+      } catch (fastErr) {
+        console.warn("Fast path failed, falling back to legacy:", fastErr.message);
+        ({ ownedTrips, sharedTrips } = await loadOwnedAndSharedLegacy(userSub));
+      }
 
       // Safety net: also scan TRIP_SETTINGS_TABLE for any shared trips that
       // weren't in TRIP_MEMBERSHIPS_TABLE — e.g. invites that predate the table
