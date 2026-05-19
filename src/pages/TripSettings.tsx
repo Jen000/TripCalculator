@@ -204,12 +204,12 @@ export default function TripSettingsPage() {
     setInviteLoading(true); setInviteMsg(null);
     try {
       const email = inviteEmail.trim();
-      await inviteTripMember(activeTripId, email);
+      const member = await inviteTripMember(activeTripId, email);
       setInviteEmail("");
       setInviteMsg({ type: "success", text: "Invite sent!" });
       await loadSettings(activeTripId);
-      // Auto-add invited member's name to the people list so they appear in "Who Paid"
-      const displayName = email.split("@")[0];
+      // Use the invited user's firstName if available, fall back to email prefix
+      const displayName = member.firstName ?? email.split("@")[0];
       if (!people.map((p) => p.toLowerCase()).includes(displayName.toLowerCase())) {
         await savePeopleList([...people, displayName]);
       }
