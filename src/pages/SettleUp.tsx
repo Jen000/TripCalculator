@@ -185,8 +185,12 @@ export default function SettleUpPage() {
 
     const resolved = explicit.map((name) => memberNameMap.get(name.toLowerCase()) ?? name);
     const lower = new Set(resolved.map((p) => p.toLowerCase()));
+    // Only add a member to extra when their firstName is confirmed. If it's
+    // null, they're already in settings.people under their real name — adding
+    // the email prefix would create a phantom third entry (e.g. "hjpanzica").
     const extra = members
-      .map((m) => m.firstName ?? m.email.split("@")[0])
+      .filter((m) => m.firstName)
+      .map((m) => m.firstName as string)
       .filter((n) => !lower.has(n.toLowerCase()));
 
     return [...resolved, ...extra];
