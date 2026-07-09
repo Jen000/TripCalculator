@@ -4,6 +4,9 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./aws-config";
 import "./index.css";
+import { initAnalytics } from "./analytics";
+
+initAnalytics();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

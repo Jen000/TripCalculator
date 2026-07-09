@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { identify } from "../analytics";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -43,6 +44,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const res = await authedFetch("/users/me");
       const data = await res.json();
       setProfile(data);
+      if (data?.userSub) identify(data.userSub, { firstName: data.firstName });
     } catch {
       // Backend not wired yet — set empty profile
       setProfile(null);

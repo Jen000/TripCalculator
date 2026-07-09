@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { createTrip, getTrips, type Trip } from "../api/trips";
+import { track } from "../analytics";
 
 type TripContextValue = {
   trips: Trip[];
@@ -99,6 +100,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
   const addTrip = async (name: string) => {
     const data = await createTrip(name);
     const newTrip = data.trip;
+    track("trip_created", { tripId: newTrip.tripId });
 
     // Optimistic update so UI feels instant
     setTrips((prev) => [newTrip, ...prev]);

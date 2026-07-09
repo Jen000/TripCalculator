@@ -7,6 +7,7 @@ import { useTrip } from "../context/TripContext";
 import { useTripSettings, DEFAULT_CATEGORIES } from "../context/TripSettingsContext";
 import { useExpenses } from "../context/ExpensesContext";
 import { postExpense } from "../api/expenses";
+import { track } from "../analytics";
 
 export default function ExpenseForm() {
   const { activeTripId, trips, loadingTrips } = useTrip();
@@ -88,6 +89,7 @@ export default function ExpenseForm() {
         whoPaid, category, cost: costNumber,
       });
       addExpenseLocal(result.expense);
+      track("expense_added", { tripId: activeTripId, category, costCents: Math.round(costNumber * 100) });
       setDate(""); setDescription(""); setWhoPaid(""); setCategory(categories[0]); setCost("");
       setMsg({ type: "success", text: "Expense added!" });
     } catch (e: any) {
