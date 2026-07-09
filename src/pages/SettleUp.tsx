@@ -20,6 +20,7 @@ import type { SplitRules } from "../api/tripSettings";
 import { useUser } from "../context/UserContext";
 import { type Expense } from "../api/expenses";
 import { recordPayment, deletePayment, type Payment } from "../api/tripSettings";
+import { track } from "../analytics";
 
 function formatMoney(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -220,6 +221,7 @@ export default function SettleUpPage() {
         amountCents: Math.round(amount * 100), note: dialogNote.trim() || undefined,
       });
       addPaymentLocal(result.payment);
+      track("payment_recorded", { tripId: activeTripId, amountCents: Math.round(amount * 100) });
       setDialogOpen(false);
     } catch {
       const local: Payment = {

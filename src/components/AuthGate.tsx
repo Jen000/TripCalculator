@@ -9,6 +9,7 @@ import {
   type AuthUser,
 } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
+import { resetAnalytics } from "../analytics";
 import {
   Alert,
   Box,
@@ -210,7 +211,7 @@ export default function AuthGate({ children }: Props) {
   // ── Authenticated ─────────────────────────────────────────────────────────────
 
   if (user) {
-    return <>{children({ user, signOut: () => amplifySignOut() })}</>;
+    return <>{children({ user, signOut: () => { resetAnalytics(); amplifySignOut(); } })}</>;
   }
 
   if (flow === "loading") {

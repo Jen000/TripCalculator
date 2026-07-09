@@ -18,6 +18,7 @@ import { useTripSettings } from "../context/TripSettingsContext";
 import { inviteTripMember, removeTripMember, renameTripApi } from "../api/tripSettings";
 import SplitRulesCard from "../components/SplitRulesCard";
 import { deleteTrip } from "../api/trips";
+import { track } from "../analytics";
 
 export default function TripSettingsPage() {
   const theme = useTheme();
@@ -205,6 +206,7 @@ export default function TripSettingsPage() {
     try {
       const email = inviteEmail.trim();
       const member = await inviteTripMember(activeTripId, email);
+      track("member_invited", { tripId: activeTripId });
       setInviteEmail("");
       setInviteMsg({ type: "success", text: "Invite sent!" });
       await loadSettings(activeTripId);
@@ -221,7 +223,7 @@ export default function TripSettingsPage() {
   const handleRemoveMember = async (userId: string) => {
     if (!activeTripId) return;
     setRemovingMember(userId);
-    try { await removeTripMember(activeTripId, userId); await loadSettings(activeTripId); }
+    try { await removeTripMember(activeTripId, userId); track("member_removed", { tripId: activeTripId }); await loadSettings(activeTripId); }
     catch { /* silently fail */ }
     finally { setRemovingMember(null); }
   };
@@ -257,6 +259,7 @@ export default function TripSettingsPage() {
     setTripDeleting(true); setDeleteMsg(null);
     try {
       await deleteTrip(deleteTripId);
+      track("trip_deleted", { tripId: deleteTripId });
       removeTripLocal(deleteTripId);
       setDeleteTripId(""); setDeleteMsg({ type: "success", text: "Trip deleted." });
       setDeleteDialogOpen(false);

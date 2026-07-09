@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { trackPageview } from "./analytics";
 import { TripProvider } from "./context/TripContext";
 import { UserProvider } from "./context/UserContext";
 import { BudgetProvider } from "./context/BudgetContext";
@@ -17,6 +18,12 @@ import Settings from "./pages/Settings";
 import AllExpenses from "./pages/AllExpenses";
 import TripSettingsPage from "./pages/TripSettings";
 import SettleUpPage from "./pages/SettleUp";
+
+function PageviewTracker() {
+  const location = useLocation();
+  useEffect(() => { trackPageview(location.pathname); }, [location.pathname]);
+  return null;
+}
 
 function getInitialMode(): "light" | "dark" {
   const saved = localStorage.getItem("themeMode");
@@ -40,6 +47,7 @@ export default function App() {
                 <BudgetProvider>
                   <ExpensesProvider>
                     <PaymentsProvider>
+                      <PageviewTracker />
                       <Layout user={user} onLogout={signOut}
                         mode={mode} onToggleMode={() => setMode((m) => m === "dark" ? "light" : "dark")}>
                         <Routes>
